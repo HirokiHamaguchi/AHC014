@@ -28,4 +28,7 @@ export class Rect {
     const yx4 = new YX(y4, x4);
     this.YXs = [yx1, yx2, yx3, yx4];
   }
+  toOutput() {
+    return `${this.YXs[0].x} ${this.YXs[0].y} ${this.YXs[1].x} ${this.YXs[1].y} ${this.YXs[2].x} ${this.YXs[2].y} ${this.YXs[3].x} ${this.YXs[3].y}`;
+  }
 }
