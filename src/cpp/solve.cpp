@@ -22,7 +22,7 @@ constexpr int MOD = 1000000007;using mint=static_modint<MOD>;vector<mint>mint_fa
 /*x s.t. x^2 ≡ a (mod Prime) or -1*/mint modsqrt(mint a){long long p=mint::mod();if(a.val()==1)return a;if(a.pow((p-1)>>1).val()!=1)return -1;mint b=1,one=1;while(b.pow((p-1)>>1).val()==1)b+=one;long long m=p-1,e=0;while(m%2==0)m>>=1,e++;mint x=a.pow((m-1)>>1);mint y=a*x*x;x*=a;mint z=b.pow(m);while(y!=1){long long j=0;mint t=y;while(t!=one)j++,t*=t;z=z.pow(1ll<<(e-j-1));x*=z;z*=z;y*=z;e=j;}return x;}mint nCk(int n,int k){if(k<0||n<k)return mint(0);return modfact(n)*(modfact(k)).inv()*modfact(n-k).inv();}
 /*min x s.t. a^x ≡ b (mod M) or -1*/int modlog(mint a,mint b){if(gcd(a.mod(),a.val())!=1){cout<<"\033[1;31mCAUTION: m must be coprime to a.\033[0m"<<endl;assert(false);}long long m=mint::mod();long long sq=round(sqrt(m))+1;unordered_map<long long,long long>ap;mint re=a;for(long long r=1;r<sq;r++){if(ap.find(re.val())==ap.end())ap[re.val()]=r;re*=a;}mint A=a.inv().pow(sq);re=b;for(mint q=0;q.val()<sq;q++){if(re==1&&q!=0)return(q*sq).val();if(ap.find(re.val())!=ap.end())return(q*sq+ap[re.val()]).val();re*=A;}return-1;};
 #ifndef hari64
-// #pragma GCC target("avx2")
+#pragma GCC target("avx2")
 #pragma GCC optimize("O3")
 #pragma GCC optimize("unroll-loops")
 #define debug(...)
@@ -89,21 +89,403 @@ string with_fill(int n,int num=3,char space=' '){string s=to_string(n);return st
 // for(int x=0;x<M;x++){/*wirte here*/esc::bcolor(y%10,myrand.randint(0,9));}esc::color(esc::GRAY,y%10);cerr<<endl;}cerr<<"";
 // for(int x=0;x<M;x++)esc::color(esc::GRAY,x%10);cerr<<""<<endl;if(vis_cnt<vis_length)esc::back(N+2+1);usleep(1.0*1000000);}
 }// namespace esc
+
+struct YX {
+    int y, x;
+    YX() : y(-1), x(-1) {}
+    YX(int y, int x) : y(y), x(x) {}
+    int abs() const { return std::abs(y) + std::abs(x); }
+    bool operator==(YX const& r) const { return y == r.y && x == r.x; }
+    bool operator!=(YX const& r) const { return !((*this) == r); }
+    bool operator<(YX const& r) const { return y == r.y ? x < r.x : y < r.y; }
+    bool operator>(YX const& r) const { return r < (*this); }
+    YX& operator+=(YX const& r) { y += r.y; x += r.x; return *this; }
+    YX& operator-=(YX const& r) { y -= r.y; x -= r.x; return *this; }
+    YX operator+(YX const& r) const { return YX{y + r.y, x + r.x}; }
+    YX operator-(YX const& r) const { return YX{y - r.y, x - r.x}; }
+    YX operator*(int const& v) { return YX{x * v, y * v}; }
+    YX operator/(int const& v) { return YX{x / v, y / v}; }
+    YX& operator*=(int const& v) { x *= v; y *= v; return *this; }
+    YX& operator/=(int const& v) { x /= v; y /= v; return *this; }
+    YX operator-() const { return YX{-x, -y}; }
+    void flip() { swap(x, y); }
+    friend istream& operator>>(istream& is, YX& r) { return is >> r.x >> r.y; }
+    friend ostream& operator<<(ostream& os, YX const& r) { return os << r.x << " " << r.y; }
+};
 // clang-format on
 
-int solve() { return 0; };
+int N;
+int M;
+vector<YX> POINTS;
+vector<vector<int>> wTable;
+
+constexpr int dirLen = 8;
+constexpr int DX[8] = {1, 1, 0, -1, -1, -1, 0, 1};
+constexpr int DY[8] = {0, 1, 1, 1, 0, -1, -1, -1};
+
+int initSumW;
+double scoreCoef;
+
+inline int to_idx2(int y, int x) { return y * N + x; };
+inline int to_idx2(YX yx) { return to_idx2(yx.y, yx.x); };
+inline int to_idx3(int y, int x, int dir) {
+    return (y * N + x) * dirLen + dir;
+};
+inline int to_idx3(YX yx, int dir) { return to_idx3(yx.y, yx.x, dir); };
+inline pair<int, int> to_hw(int idx) { return {idx / N, idx % N}; };
+inline int sign(int val) { return (0 < val) - (val < 0); }
+
+struct Rect {
+    YX YXs[4];
+    Rect(){};
+    Rect(int y1, int x1, int y2, int x2, int y3, int x3, int y4, int x4) {
+        YXs[0] = YX(y1, x1);
+        YXs[1] = YX(y2, x2);
+        YXs[2] = YX(y3, x3);
+        YXs[3] = YX(y4, x4);
+    }
+
+    int size() const {
+        YX d1 = YXs[1] - YXs[0];
+        YX d2 = YXs[2] - YXs[0];
+        YX d3 = YXs[3] - YXs[0];
+        return (abs(d1.x * d2.y - d2.x * d1.y) +
+                abs(d3.x * d2.y - d2.x * d3.y)) /
+               2;
+    }
+
+    inline bool is_valid() const {
+        assert((YXs[0].y != -1 && YXs[0].x != -1) ||
+               (YXs[0] == YXs[1] && YXs[1] == YXs[2] && YXs[2] == YXs[3]));
+        return YXs[0].y != -1;
+    }
+    inline int getValue() const { return wTable[YXs[0].y][YXs[0].x]; }
+
+    bool operator==(Rect const& r) const {
+        return YXs[0] == r.YXs[0] && YXs[1] == r.YXs[1] && YXs[2] == r.YXs[2] &&
+               YXs[3] == r.YXs[3];
+    }
+    friend ostream& operator<<(ostream& os, const Rect& rect) {
+        return os << rect.YXs[0] << " " << rect.YXs[1] << " " << rect.YXs[2]
+                  << " " << rect.YXs[3];
+    }
+};
+using Rects = vector<Rect>;
+
+constexpr int maxN = 61;
+using Bitset = bitset<maxN * maxN * dirLen>;
+using Grid = vector<int>;
+
+struct State {
+    Bitset used;
+    Grid grid;
+    Rects cands;
+    Rects ans;
+
+    State() : grid(N * N) {
+        used.reset();
+        for (auto& p : POINTS) grid[to_idx2(p)] = 1;
+        for (int y = 0; y < N; y++) {
+            for (int x = 0; x < N; x++) {
+                for (int dir = 0; dir < dirLen; dir++) {
+                    if (grid[to_idx2(y, x)]) {
+                        const Rect rect = getDoubleNext(y, x, dir);
+                        if (rect.is_valid()) {
+                            cands.push_back(rect);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    tuple<int, int, int> getNext(int y, int x, int dir) const {
+        if (y == -1 || x == -1) return {-1, -1, -1};
+        int len = 0;
+        while (0 < x && x < N - 1 && 0 < y && y < N - 1) {
+            if (used[to_idx3(y, x, dir)]) return {-1, -1, -1};
+            y += DY[dir];
+            x += DX[dir];
+            len++;
+            if (grid[to_idx2(y, x)]) return {y, x, len};
+        }
+        return {-1, -1, -1};
+    }
+
+    tuple<int, int> getNextWithLen(int y, int x, int dir, int len) const {
+        if (y == -1 || x == -1) return {-1, -1};
+        int cnt = 0;
+        while (0 < x && x < N - 1 && 0 < y && y < N - 1) {
+            if (used[to_idx3(y, x, dir)]) return {-1, -1};
+            y += DY[dir];
+            x += DX[dir];
+            cnt++;
+            if (grid[to_idx2(y, x)] || cnt == len) return {y, x};
+        }
+        return {-1, -1};
+    }
+
+    // pair<bool, any> is_valid(int y, int x, int dir) const {
+    //     assert(!grid[to_idx2(y, x)]);
+    //     int dir1 = dir;
+    //     int dir2 = (dir + 2) % dirLen;
+    //     auto [ny11, nx11, len1] = getNext(y, x, dir1);
+    //     auto [ny12, nx12, len2] = getNext(y, x, dir2);
+    //     if (ny11 == -1 || ny12 == -1) return {false, Rect()};
+    //     auto [ny21, nx21, _1] = getNext(ny11, nx11, dir2);
+    //     auto [ny22, nx22, _2] = getNext(ny12, nx12, dir1);
+    //     if (ny21 != -1 && ny22 != -1 && ny21 == ny22 && nx21 == nx22 &&
+    //         grid[to_idx2(ny21, nx21)]) {
+    //         return {true, Rect(y, x, ny11, nx11, ny21, nx21, ny12, nx12)};
+    //     }
+    //     return {false, Rect()};
+    // }
+
+    Rect getDoubleNext(int y, int x, int dir) const {
+        assert(grid[to_idx2(y, x)]);
+        int dir1 = dir;
+        int dir2 = (dir + 2) % dirLen;
+        auto [ny11, nx11, len1] = getNext(y, x, dir1);
+        auto [ny12, nx12, len2] = getNext(y, x, dir2);
+        if (ny11 == -1 || ny12 == -1) return Rect();
+        auto [ny21, nx21] = getNextWithLen(ny11, nx11, dir2, len2);
+        auto [ny22, nx22] = getNextWithLen(ny12, nx12, dir1, len1);
+        if (ny21 != -1 && ny22 != -1 && ny21 == ny22 && nx21 == nx22 &&
+            !grid[to_idx2(ny21, nx21)]) {
+            return Rect(ny21, nx21, ny11, nx11, y, x, ny12, nx12);
+        }
+        return Rect();
+    }
+
+    Rect getTripleNext(int y, int x, int dir, bool rectDir) const {
+        assert(grid[to_idx2(y, x)]);
+        int dir1 = dir;
+        int dir2 = (dir + (rectDir ? 2 : 6)) % dirLen;
+        int dir3 = (dir + (rectDir ? 2 : 6) * 2) % dirLen;
+        auto [ny1, nx1, len1] = getNext(y, x, dir1);
+        if (ny1 == -1) return Rect();
+        auto [ny2, nx2, len2] = getNext(ny1, nx1, dir2);
+        if (ny2 == -1) return Rect();
+        auto [ny3, nx3] = getNextWithLen(ny2, nx2, dir3, len1);
+        if (ny3 == -1) return Rect();
+        auto [ny4, nx4] = getNextWithLen(y, x, dir2, len2);
+        if (ny4 != -1 && nx4 != -1 && ny3 == ny4 && nx3 == nx4 &&
+            !grid[to_idx2(ny3, nx3)]) {
+            return Rect(ny3, nx3, y, x, ny1, nx1, ny2, nx2);
+        }
+        return Rect();
+    }
+
+    void applyRect(const Rect& rect) {
+        // 更新
+        ans.push_back(rect);
+        grid[to_idx2(rect.YXs[0])] = true;
+        for (auto i = 0; i < 4; i++) {
+            int x = rect.YXs[i].x, y = rect.YXs[i].y;
+            int tx = rect.YXs[(i + 1) % 4].x, ty = rect.YXs[(i + 1) % 4].y;
+            int dx = sign(tx - x), dy = sign(ty - y);
+            int dir = 0;
+            for (; dir < 8; dir++)
+                if (dx == DX[dir] && dy == DY[dir]) break;
+            while (x != tx || y != ty) {
+                used[to_idx3(y, x, dir)] = true;
+                x += DX[dir];
+                y += DY[dir];
+                used[to_idx3(y, x, dir ^ 4)] = true;
+            }
+        }
+
+        // 候補から削除
+        auto iter = find(cands.begin(), cands.end(), rect);
+        if (iter == cands.end()) assert(false);
+        cands.erase(iter);
+        cands.erase(remove_if(cands.begin(), cands.end(),
+                              [&](const Rect& cand) {
+                                  if (grid[to_idx2(cand.YXs[0])]) {
+                                      return true;
+                                  }
+                                  for (auto i = 0; i < 4; i++) {
+                                      int x = cand.YXs[i].x, y = cand.YXs[i].y;
+                                      int tx = cand.YXs[(i + 1) % 4].x,
+                                          ty = cand.YXs[(i + 1) % 4].y;
+                                      int dx = sign(tx - x), dy = sign(ty - y);
+                                      int dir = 0;
+                                      for (; dir < 8; dir++)
+                                          if (dx == DX[dir] && dy == DY[dir])
+                                              break;
+                                      while (x != tx || y != ty) {
+                                          if (used[to_idx3(y, x, dir)]) {
+                                              return true;
+                                          }
+                                          x += DX[dir];
+                                          y += DY[dir];
+                                          if (used[to_idx3(y, x, dir ^ 4)]) {
+                                              return true;
+                                          }
+                                          if (x == tx && y == ty) {
+                                              break;
+                                          }
+                                          if (grid[to_idx2(y, x)]) {
+                                              return true;
+                                          }
+                                      }
+                                  }
+                                  return false;
+                              }),
+                    cands.end());
+
+        // 候補への追加
+        for (int dir = 0; dir < 8; dir++) {
+            const Rect new_rect =
+                getDoubleNext(rect.YXs[0].y, rect.YXs[0].x, dir);
+            if (new_rect.is_valid()) {
+                cands.push_back(new_rect);
+            }
+            const Rect new_rect2 =
+                getTripleNext(rect.YXs[0].y, rect.YXs[0].x, dir, true);
+            if (new_rect2.is_valid()) {
+                cands.push_back(new_rect2);
+            }
+            const Rect new_rect3 =
+                getTripleNext(rect.YXs[0].y, rect.YXs[0].x, dir, false);
+            if (new_rect3.is_valid()) {
+                cands.push_back(new_rect3);
+            }
+        }
+    }
+};
+
+int calcScore(const Rects& ans) {
+    int sumW = initSumW;
+    for (auto& r : ans) sumW += r.getValue();
+    return int(round(scoreCoef * (double(sumW))));
+}
+
+void readInput() {
+    cin >> N >> M;
+    POINTS.resize(M);
+    for (int i = 0; i < M; i++) cin >> POINTS[i];
+
+    auto w = [&](int y, int x) -> int {
+        int c = (N - 1) / 2;
+        return (x - c) * (x - c) + (y - c) * (y - c) + 1;
+    };
+
+    double S = 0;
+    wTable.resize(N);
+    for (int y = 0; y < N; y++) {
+        wTable[y].resize(N);
+        for (int x = 0; x < N; x++) {
+            wTable[y][x] = w(y, x);
+            S += wTable[y][x];
+        }
+    }
+    initSumW = 0;
+    for (auto& p : POINTS) initSumW += wTable[p.y][p.x];
+    scoreCoef = 1e6 * (double(N * N) / double(M)) / double(S);
+}
+
+void printAns(const Rects& ans) {
+    debug(calcScore(ans));
+    cout << ans.size() << endl;
+    for (auto& r : ans) cout << r << endl;
+}
+
+void solve() {
+    Rects bestAns;
+    int bestScore = 0;
+    {
+        State state;
+        while (!state.cands.empty()) {
+            myrand.shuffle(state.cands);
+            sort(state.cands.begin(), state.cands.end(),
+                 [](const Rect& a, const Rect& b) {
+                     return a.size() < b.size();
+                 });
+            const Rect rect = state.cands.front();
+            state.applyRect(rect);
+        }
+        debug("small");
+        debug(calcScore(state.ans));
+        if (chmax(bestScore, calcScore(state.ans))) {
+            bestAns = state.ans;
+        }
+    }
+    {
+        State state;
+        while (!state.cands.empty()) {
+            sort(state.cands.begin(), state.cands.end(),
+                 [&](const Rect& a, const Rect& b) {
+                     if (state.ans.empty()) {
+                         return a.size() < b.size();
+                     } else {
+                         return (state.ans.back().YXs[0] - a.YXs[0]).abs() <
+                                (state.ans.back().YXs[0] - b.YXs[0]).abs();
+                     }
+                 });
+            const Rect rect = state.cands.front();
+            state.applyRect(rect);
+        }
+        debug("near");
+        debug(calcScore(state.ans));
+        if (chmax(bestScore, calcScore(state.ans))) {
+            bestAns = state.ans;
+        }
+    }
+    {
+        State state;
+        while (!state.cands.empty()) {
+            sort(state.cands.begin(), state.cands.end(),
+                 [](const Rect& a, const Rect& b) {
+                     return wTable[a.YXs[0].y][a.YXs[0].x] >
+                            wTable[b.YXs[0].y][b.YXs[0].x];
+                 });
+            const Rect rect = state.cands.front();
+            state.applyRect(rect);
+        }
+        debug("far");
+        debug(calcScore(state.ans));
+        if (chmax(bestScore, calcScore(state.ans))) {
+            bestAns = state.ans;
+        }
+    }
+    {
+        State state;
+        while (!state.cands.empty()) {
+            sort(state.cands.begin(), state.cands.end(),
+                 [](const Rect& a, const Rect& b) {
+                     return double(wTable[a.YXs[0].y][a.YXs[0].x]) /
+                                double(a.size()) >
+                            double(wTable[b.YXs[0].y][b.YXs[0].x]) /
+                                double(b.size());
+                 });
+            const Rect rect = state.cands.front();
+            state.applyRect(rect);
+        }
+        debug("effective");
+        debug(calcScore(state.ans));
+        if (chmax(bestScore, calcScore(state.ans))) {
+            bestAns = state.ans;
+        }
+    }
+    debug(bestScore);
+    printAns(bestAns);
+}
 
 int main() {
     cin.tie(0);
     ios::sync_with_stdio(false);
 
+    int TL = 4500;
+
+    readInput();
+
     timer.start();
-    auto score = solve();
+    solve();
     timer.stop();
 
-    cerr << score << endl;
     cerr << timer.report() << endl;
-    assert(timer.ms() < 9800);
+    assert(timer.ms() < TL);
 
     return 0;
 }
