@@ -153,6 +153,11 @@ struct Rect {
                 abs(d3.x * d2.y - d2.x * d3.y)) /
                2;
     }
+    int len() const {
+        YX d1 = YXs[1] - YXs[0];
+        YX d2 = YXs[3] - YXs[0];
+        return (max(abs(d1.x), abs(d1.y)) + max(abs(d2.x), abs(d2.y)));
+    }
 
     inline bool is_valid() const {
         assert((YXs[0].y != -1 && YXs[0].x != -1) ||
@@ -180,7 +185,11 @@ struct State {
     Bitset used;
     Grid grid;
     Rects cands;
+    Rects newly_added;
     Rects ans;
+
+    int blocked = 0;
+    int numNewPoints = 0;
 
     State() : grid(N * N) {
         used.reset();
@@ -276,10 +285,7 @@ struct State {
         return Rect();
     }
 
-    void applyRect(const Rect& rect) {
-        // 更新
-        ans.push_back(rect);
-        grid[to_idx2(rect.YXs[0])] = true;
+    void fillUsed(const Rect& rect, bool fillValue) {
         for (auto i = 0; i < 4; i++) {
             int x = rect.YXs[i].x, y = rect.YXs[i].y;
             int tx = rect.YXs[(i + 1) % 4].x, ty = rect.YXs[(i + 1) % 4].y;
@@ -288,17 +294,34 @@ struct State {
             for (; dir < 8; dir++)
                 if (dx == DX[dir] && dy == DY[dir]) break;
             while (x != tx || y != ty) {
-                used[to_idx3(y, x, dir)] = true;
+                blocked += (fillValue ? 1 : -1);
+                used[to_idx3(y, x, dir)] = fillValue;
                 x += DX[dir];
                 y += DY[dir];
-                used[to_idx3(y, x, dir ^ 4)] = true;
+                used[to_idx3(y, x, dir ^ 4)] = fillValue;
             }
+            blocked -= (fillValue ? 1 : -1);
         }
+    }
+
+    void applyRect(int candIdx, string which) {
+        assert(which == "old" || which == "new");
+        bool is_old = (which == "old");
+        assert(0 <= candIdx &&
+               candIdx < int(is_old ? cands.size() : newly_added.size()));
+
+        // 更新
+        numNewPoints++;
+        const Rect rect = is_old ? cands[candIdx] : newly_added[candIdx];
+        ans.push_back(rect);
+        grid[to_idx2(rect.YXs[0])] = true;
+        fillUsed(rect, true);
 
         // 候補から削除
-        auto iter = find(cands.begin(), cands.end(), rect);
-        if (iter == cands.end()) assert(false);
-        cands.erase(iter);
+        size_t oldSize = cands.size();
+        cands.insert(cands.end(), newly_added.begin(), newly_added.end());
+        newly_added.clear();
+        cands.erase(cands.begin() + (is_old ? 0 : oldSize) + candIdx);
         cands.erase(remove_if(cands.begin(), cands.end(),
                               [&](const Rect& cand) {
                                   if (grid[to_idx2(cand.YXs[0])]) {
@@ -339,17 +362,17 @@ struct State {
             const Rect new_rect =
                 getDoubleNext(rect.YXs[0].y, rect.YXs[0].x, dir);
             if (new_rect.is_valid()) {
-                cands.push_back(new_rect);
+                newly_added.push_back(new_rect);
             }
             const Rect new_rect2 =
                 getTripleNext(rect.YXs[0].y, rect.YXs[0].x, dir, true);
             if (new_rect2.is_valid()) {
-                cands.push_back(new_rect2);
+                newly_added.push_back(new_rect2);
             }
             const Rect new_rect3 =
                 getTripleNext(rect.YXs[0].y, rect.YXs[0].x, dir, false);
             if (new_rect3.is_valid()) {
-                cands.push_back(new_rect3);
+                newly_added.push_back(new_rect3);
             }
         }
     }
@@ -386,97 +409,56 @@ void readInput() {
 }
 
 void printAns(const Rects& ans) {
+#ifdef TEST
+    cout << calcScore(ans) << endl;
+#else
     debug(calcScore(ans));
     cout << ans.size() << endl;
     for (auto& r : ans) cout << r << endl;
+#endif
 }
 
 void solve() {
-    Rects bestAns;
-    int bestScore = 0;
-    {
-        State state;
-        while (!state.cands.empty()) {
-            myrand.shuffle(state.cands);
-            sort(state.cands.begin(), state.cands.end(),
-                 [](const Rect& a, const Rect& b) {
-                     return a.size() < b.size();
-                 });
-            const Rect rect = state.cands.front();
-            state.applyRect(rect);
+    State lastState;
+    while (!lastState.cands.empty()) {
+        State bestState;
+        int bestScore = -INF;
+        for (int i = 0; i < int(lastState.cands.size()); i++) {
+            State state = lastState;
+            state.applyRect(i, "old");
+            while (!state.newly_added.empty()) {
+                myrand.shuffle(state.newly_added);
+                bool ok = false;
+                for (int j = 0; j < int(state.newly_added.size()); j++) {
+                    if (state.newly_added[j].len() == 2) {
+                        ok = true;
+                        state.applyRect(j, "new");
+                        break;
+                    }
+                }
+                if (!ok) {
+                    break;
+                }
+            }
+            if (chmax(bestScore, state.numNewPoints - state.blocked)) {
+                swap(bestState, state);
+            }
         }
-        debug("small");
-        debug(calcScore(state.ans));
-        if (chmax(bestScore, calcScore(state.ans))) {
-            bestAns = state.ans;
-        }
+        swap(lastState, bestState);
+        lastState.cands.insert(lastState.cands.end(),
+                               lastState.newly_added.begin(),
+                               lastState.newly_added.end());
+        lastState.newly_added.clear();
     }
-    {
-        State state;
-        while (!state.cands.empty()) {
-            sort(state.cands.begin(), state.cands.end(),
-                 [&](const Rect& a, const Rect& b) {
-                     if (state.ans.empty()) {
-                         return a.size() < b.size();
-                     } else {
-                         return (state.ans.back().YXs[0] - a.YXs[0]).abs() <
-                                (state.ans.back().YXs[0] - b.YXs[0]).abs();
-                     }
-                 });
-            const Rect rect = state.cands.front();
-            state.applyRect(rect);
-        }
-        debug("near");
-        debug(calcScore(state.ans));
-        if (chmax(bestScore, calcScore(state.ans))) {
-            bestAns = state.ans;
-        }
-    }
-    {
-        State state;
-        while (!state.cands.empty()) {
-            sort(state.cands.begin(), state.cands.end(),
-                 [](const Rect& a, const Rect& b) {
-                     return wTable[a.YXs[0].y][a.YXs[0].x] >
-                            wTable[b.YXs[0].y][b.YXs[0].x];
-                 });
-            const Rect rect = state.cands.front();
-            state.applyRect(rect);
-        }
-        debug("far");
-        debug(calcScore(state.ans));
-        if (chmax(bestScore, calcScore(state.ans))) {
-            bestAns = state.ans;
-        }
-    }
-    {
-        State state;
-        while (!state.cands.empty()) {
-            sort(state.cands.begin(), state.cands.end(),
-                 [](const Rect& a, const Rect& b) {
-                     return double(wTable[a.YXs[0].y][a.YXs[0].x]) /
-                                double(a.size()) >
-                            double(wTable[b.YXs[0].y][b.YXs[0].x]) /
-                                double(b.size());
-                 });
-            const Rect rect = state.cands.front();
-            state.applyRect(rect);
-        }
-        debug("effective");
-        debug(calcScore(state.ans));
-        if (chmax(bestScore, calcScore(state.ans))) {
-            bestAns = state.ans;
-        }
-    }
-    debug(bestScore);
-    printAns(bestAns);
+
+    printAns(lastState.ans);
 }
 
 int main() {
     cin.tie(0);
     ios::sync_with_stdio(false);
 
-    int TL = 4500;
+    int TL = 4900;
 
     readInput();
 
@@ -484,8 +466,10 @@ int main() {
     solve();
     timer.stop();
 
+#ifdef hari64
     cerr << timer.report() << endl;
     assert(timer.ms() < TL);
+#endif
 
     return 0;
 }
