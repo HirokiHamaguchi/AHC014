@@ -177,6 +177,8 @@ struct Rect {
         YX d2 = YXs[3] - YXs[0];
         return (max(abs(d1.x), abs(d1.y)) + max(abs(d2.x), abs(d2.y)));
     }
+    int dir() const { return getDir(YXs[1] - YXs[0]); }
+
     int _regionPoint(const YX& point) const {
         // -1    -1
         //    1
@@ -250,6 +252,7 @@ struct Rect {
 using Rects = vector<Rect>;
 
 constexpr int maxN = 61;
+// bool[]の方が速い?
 using Bitset = bitset<maxN * maxN * dirLen>;
 using Grid = bitset<maxN * maxN>;
 
@@ -384,18 +387,7 @@ struct State {
         }
     }
 
-    void applyRect(int candIdx, int age) {
-        assert(0 <= candIdx && candIdx < int(cands.size()));
-
-        // 更新
-        int y = cands[candIdx].YXs[0].y, x = cands[candIdx].YXs[0].x;
-        numNewPoints++;
-        ans.push_back(cands[candIdx]);
-        grid[to_idx2(cands[candIdx].YXs[0])] = true;
-        fillUsed(cands[candIdx], true);
-
-        // 候補から削除
-        cands.erase(cands.begin() + candIdx);
+    void eraseInvalid() {
         cands.erase(remove_if(cands.begin(), cands.end(),
                               [this](const Rect& cand) {
                                   if (grid[to_idx2(cand.YXs[0])]) return true;
@@ -418,6 +410,83 @@ struct State {
                                   return false;
                               }),
                     cands.end());
+    }
+
+    // okだけを消すので、衝突が発生しない eraseをしなくてよい
+    void applyAllOkRect() {
+        deque<Rect> oks;          // ◇より□を優先する
+        unordered_set<int> seen;  // 恐らくこれはいらない気もするが...
+
+        cands.erase(remove_if(cands.begin(), cands.end(),
+                              [&](const Rect& cand) {
+                                  if (cand.is_ok(pattern)) {
+                                      if (cand.dir() % 2 == 0) {
+                                          seen.insert(to_idx2(cand.YXs[0]));
+                                          oks.push_back(cand);
+                                      } else {
+                                          oks.push_front(cand);
+                                      }
+                                      return true;
+                                  } else {
+                                      return false;
+                                  }
+                              }),
+                    cands.end());
+
+        while (!oks.empty()) {
+            Rect rect = oks.back();
+            oks.pop_back();
+            if (!grid[to_idx2(rect.YXs[0])] && rect.dir() % 2 == 1 &&
+                seen.find(to_idx2(rect.YXs[0])) != seen.end()) {
+                continue;
+            }
+            if (grid[to_idx2(rect.YXs[0])]) {
+                continue;
+            }
+            int y = rect.YXs[0].y, x = rect.YXs[0].x;
+            numNewPoints++;
+            ans.push_back(rect);
+            grid[to_idx2(rect.YXs[0])] = true;
+            assert(int(grid.count()) == int(POINTS.size()) + numNewPoints);
+            fillUsed(rect, true);
+
+            // 候補への追加
+            for (int dir = 0; dir < 8; dir++) {
+                vector<Rect> new_rects = {getDoubleNext(y, x, dir),
+                                          getTripleNext(y, x, dir, true),
+                                          getTripleNext(y, x, dir, false)};
+                for (auto& new_rect : new_rects) {
+                    if (new_rect.is_valid()) {
+                        if (new_rect.is_ok(pattern)) {
+                            if (new_rect.dir() % 2 == 0) {
+                                seen.insert(to_idx2(new_rect.YXs[0]));
+                                oks.push_back(new_rect);
+                            } else {
+                                oks.push_front(new_rect);
+                            }
+                        } else
+                            cands.push_back(new_rect);
+                    }
+                }
+            }
+        }
+
+        eraseInvalid();
+    }
+
+    void applyRect(int candIdx, int age) {
+        assert(0 <= candIdx && candIdx < int(cands.size()));
+
+        // 更新
+        int y = cands[candIdx].YXs[0].y, x = cands[candIdx].YXs[0].x;
+        numNewPoints++;
+        ans.push_back(cands[candIdx]);
+        grid[to_idx2(cands[candIdx].YXs[0])] = true;
+        fillUsed(cands[candIdx], true);
+
+        // 候補から削除
+        cands.erase(cands.begin() + candIdx);
+        eraseInvalid();
 
         // 候補への追加
         for (int dir = 0; dir < 8; dir++) {
@@ -479,6 +548,10 @@ Rects solveSub(int pattern, const Rects& prevAns = {}) {
     int loop_cnt = 0;
     while (!state.cands.empty()) {
         loop_cnt++;
+
+        state.applyAllOkRect();
+        if (state.cands.empty()) break;
+
         vector<int> eval_values(state.cands.size(), 0);
         for (int i = int(state.cands.size()) - 1; i >= 0; i--) {
             State new_state = state;
@@ -492,15 +565,22 @@ Rects solveSub(int pattern, const Rects& prevAns = {}) {
             if (!state.cands[i].is_ok(state.pattern)) {
                 eval_values[i] -= INF;
             } else {
-                break;
+                assert(false);
             }
         }
         int best_idx =
             distance(eval_values.begin(),
                      max_element(eval_values.begin(), eval_values.end()));
-        if (eval_values[best_idx] < -INF / 2) {
-            debug(loop_cnt);
-        }
+        // if (eval_values[best_idx] < -INF / 2) {
+        //     // debug(loop_cnt);
+        //     for (auto& v : eval_values) {
+        //         v += INF;
+        //         chmax(v, 0);
+        //     }
+        //     vector<int> Ps(eval_values.size());
+        //     iota(Ps.begin(), Ps.end(), 0);
+        //     best_idx = myrand.choice(Ps, eval_values);
+        // }
         state.applyRect(best_idx, loop_cnt);
         // int bestIdx = -1;
         // for (int i = 0; i < int(state.cands.size()) && bestIdx == -1; i++) {
@@ -527,15 +607,21 @@ Rects solveSub(int pattern, const Rects& prevAns = {}) {
 void solve() {
     Rects bestAns;
     int bestScore = -1;
+    int bestPattern = -1;
 
+    // while (timer.ms() < 10000) {
     for (int pattern = 0; pattern < 16; pattern++) {
+        debug(pattern);
         Rects ans = solveSub(pattern);
         if (chmax(bestScore, calcScore(ans))) {
-            debug(pattern);
+            bestPattern = pattern;
+            // debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             swap(bestAns, ans);
         }
     }
+    // }
     printAns(bestAns);
+    debug(bestPattern);
 }
 
 int main() {
