@@ -7,20 +7,7 @@ template<class T>void v(const deque<T>&q,s&&e){v(vector<T>(q.begin(),q.end()),e)
 template<class T,class U,class V>void v(const priority_queue<T,U,V>&p,s&&e){priority_queue<T,U,V>q=p;vector<T>z;while(!q.empty()){z.push_back(q.top());q.pop();}v(z,e);}template<class T,class U>void v(const map<T,U>&m,s&&e){cerr<<"{"<<(m.empty()?"":"\n");for(const auto&kv:m){cerr<<"  [";v(kv.first,"");cerr<<"] : ";v(kv.second,"");cerr<<"\n";}cerr<<"}"+e;}
 template<class T>void _view(int n,s&S,T&var){cerr<<"\033[1;32m"<<n<<"\033[0m: \033[1;36m"<<S<<"\033[0m = ";v(var,"\n");}template<class T>void grid([[maybe_unused]]T _){}void grid(const vector<vector<bool>>&vvb){cerr<<"\n";for(const vector<bool>&vb:vvb){for(const bool&b:vb)cerr<<(b?".":"#");cerr<<"\n";}}
 void _debug(int,s){}template<typename H,typename... T>void _debug(int n,s S,const H&h,const T&... t){int i=0,cnt=0;for(;i<int(S.size());i++){if(S[i]=='(')cnt++;if(S[i]==')')cnt--;if(cnt==0&&S[i]==',')break;}if(i==int(S.size()))_view(n,S,h);else{s S1=S.substr(0,i),S2=S.substr(i+2);if(S2=="\"grid\""){cerr<<"\033[1;32m"<<n<<"\033[0m: \033[1;36m"<<S1<<"\033[0m = ";grid(h);}else _view(n,S1,h),_debug(n,S2,t...);}}}
-template<class T>bool chmax(T&a,const T&b){return a<b?a=b,1:0;}template<class T>bool chmin(T&a,const T&b){return a>b?a=b,1:0;} // https://rsk0315.hatenablog.com/entry/2021/01/18/065720
-namespace internal{template<class T>using is_signed_int128=typename conditional<is_same<T,__int128_t>::value||is_same<T,__int128>::value,true_type,false_type>::type;template<class T>using is_unsigned_int128=typename conditional<is_same<T,__uint128_t>::value||is_same<T,unsigned __int128>::value,true_type,false_type>::type;template<class T>using is_integral=typename conditional<std::is_integral<T>::value||is_signed_int128<T>::value||is_unsigned_int128<T>::value,true_type,false_type>::type;
-template<class T>using is_signed_int=typename conditional<(is_integral<T>::value&&is_signed<T>::value)||is_signed_int128<T>::value,true_type,false_type>::type;template<class T>using is_unsigned_int=typename conditional<(is_integral<T>::value&&is_unsigned<T>::value)||is_unsigned_int128<T>::value,true_type,false_type>::type;template<class T>using is_signed_int_t=enable_if_t<is_signed_int<T>::value>;template<class T>using is_unsigned_int_t=enable_if_t<is_unsigned_int<T>::value>;
-constexpr long long safe_mod(long long x,long long m){x%=m;if(x<0)x+=m;return x;}struct barrett{unsigned int _m;unsigned long long im;explicit barrett(unsigned int m):_m(m),im((unsigned long long)(-1)/m+1){}unsigned int umod()const{return _m;}unsigned int mul(unsigned int a,unsigned int b)const{unsigned long long z=a;z*=b;unsigned long long x=(unsigned long long)(((unsigned __int128)(z)*im)>>64);unsigned int v=(unsigned int)(z-x*_m);if(_m<=v)v+=_m;return v;}};
-constexpr long long pow_mod_constexpr(long long x,long long n,int m){if(m==1)return 0;unsigned int _m=(unsigned int)(m);unsigned long long r=1;unsigned long long y=safe_mod(x,m);while(n){if(n&1)r=(r*y)%_m;y=(y*y)%_m;n>>=1;}return r;}constexpr pair<long long,long long>inv_gcd(long long a,long long b){a=safe_mod(a,b);if(a==0)return{b,0};long long s=b,t=a;long long m0=0,m1=1;while(t){long long u=s/t;s-=t*u;m0-=m1*u;auto tmp=s;s=t;t=tmp;tmp=m0;m0=m1;m1=tmp;}if(m0<0)m0+=b/s;return{s,m0};}
-constexpr bool is_prime_constexpr(int n){if(n<=1)return false;if(n==2||n==7||n==61)return true;if(n%2==0)return false;long long d=n-1;while(d%2==0)d/=2;constexpr long long bases[3]={2,7,61};for(long long a:bases){long long t=d;long long y=pow_mod_constexpr(a,t,n);while(t!=n-1&&y!=1&&y!=n-1){y=y*y%n;t<<=1;}if(y!=n-1&&t%2==0)return false;}return true;}template<int n>constexpr bool is_prime=is_prime_constexpr(n);} // namespace internal
-template<int m>struct static_modint{using mint=static_modint;static constexpr int mod(){return m;}static mint raw(int v){mint x;x._v=v;return x;}static_modint():_v(0){}template<class T,internal::is_signed_int_t<T>* =nullptr>static_modint(T v){long long x=(long long)(v%(long long)(umod()));if(x<0)x+=umod();_v=(unsigned int)(x);}template<class T,internal::is_unsigned_int_t<T>* =nullptr>static_modint(T v){_v=(unsigned int)(v%umod());}unsigned int val()const{return _v;}
-mint&operator++(){_v++;if(_v==umod())_v=0;return*this;}mint&operator--(){if(_v==0)_v=umod();_v--;return*this;}mint operator++(int){mint result=*this;++*this;return result;}mint operator--(int){mint result=*this;--*this;return result;}mint&operator+=(const mint&rhs){_v+=rhs._v;if(_v>=umod())_v-=umod();return*this;}mint&operator-=(const mint&rhs){_v-=rhs._v;if(_v>=umod())_v+=umod();return*this;}
-mint&operator*=(const mint&rhs){unsigned long long z=_v;z*=rhs._v;_v=(unsigned int)(z%umod());return*this;}mint&operator/=(const mint&rhs){return*this=*this*rhs.inv();}mint operator+()const{return*this;}mint operator-()const{return mint()-*this;}mint pow(long long n)const{assert(0<=n);mint x=*this,r=1;while(n){if(n&1)r*=x;x*=x;n>>=1;}return r;}mint inv()const{if(prime){assert(_v);return pow(umod()-2);}else{auto eg=internal::inv_gcd(_v,m);assert(eg.first==1);return eg.second;}}
-friend mint operator+(const mint&lhs,const mint&rhs){return mint(lhs)+=rhs;}friend mint operator-(const mint&lhs,const mint&rhs){return mint(lhs)-=rhs;}friend mint operator*(const mint&lhs,const mint&rhs){return mint(lhs)*=rhs;}friend mint operator/(const mint&lhs,const mint&rhs){return mint(lhs)/=rhs;}friend bool operator==(const mint&lhs,const mint&rhs){return lhs._v==rhs._v;}friend bool operator!=(const mint&lhs,const mint&rhs){return lhs._v!=rhs._v;}
-friend ostream&operator<<(ostream&os,const mint&rhs){return os<<rhs._v;}friend istream&operator>>(istream&is,mint&rhs){long long v;is>>v;v%=(long long)(umod());if(v<0)v+=umod();;rhs._v=(unsigned int)v;return is;}static constexpr bool prime=internal::is_prime<m>;private:unsigned int _v;static constexpr unsigned int umod(){return m;}};
-constexpr int MOD = 1000000007;using mint=static_modint<MOD>;vector<mint>mint_factorial={mint(1)};/*n>1e8 ⇒ fast_modfact(deprecated)*/mint modfact(int n){assert(n<=100000000);if(int(mint_factorial.size())<=n){for(int i=mint_factorial.size();i<=n;i++){mint next=mint_factorial.back()*i;mint_factorial.push_back(next);}}return mint_factorial[n];}
-/*x s.t. x^2 ≡ a (mod Prime) or -1*/mint modsqrt(mint a){long long p=mint::mod();if(a.val()==1)return a;if(a.pow((p-1)>>1).val()!=1)return -1;mint b=1,one=1;while(b.pow((p-1)>>1).val()==1)b+=one;long long m=p-1,e=0;while(m%2==0)m>>=1,e++;mint x=a.pow((m-1)>>1);mint y=a*x*x;x*=a;mint z=b.pow(m);while(y!=1){long long j=0;mint t=y;while(t!=one)j++,t*=t;z=z.pow(1ll<<(e-j-1));x*=z;z*=z;y*=z;e=j;}return x;}mint nCk(int n,int k){if(k<0||n<k)return mint(0);return modfact(n)*(modfact(k)).inv()*modfact(n-k).inv();}
-/*min x s.t. a^x ≡ b (mod M) or -1*/int modlog(mint a,mint b){if(gcd(a.mod(),a.val())!=1){cout<<"\033[1;31mCAUTION: m must be coprime to a.\033[0m"<<endl;assert(false);}long long m=mint::mod();long long sq=round(sqrt(m))+1;unordered_map<long long,long long>ap;mint re=a;for(long long r=1;r<sq;r++){if(ap.find(re.val())==ap.end())ap[re.val()]=r;re*=a;}mint A=a.inv().pow(sq);re=b;for(mint q=0;q.val()<sq;q++){if(re==1&&q!=0)return(q*sq).val();if(ap.find(re.val())!=ap.end())return(q*sq+ap[re.val()]).val();re*=A;}return-1;};
+template<class T>bool chmax(T&a,const T&b){return a<b?a=b,1:0;}template<class T>bool chmin(T&a,const T&b){return a>b?a=b,1:0;}
 #ifndef hari64
 #pragma GCC target("avx2")
 #pragma GCC optimize("O3")
@@ -74,21 +61,6 @@ struct Rand{// https://docs.python.org/ja/3/library/random.html
     double normalvariate(double mu=0.0,double sigma=1.0){double u2,z,NV=4*exp(-0.5)/sqrt(2.0);while(true){u2=1.0-random();z=NV*(random()-0.5)/u2;if(z*z/4.0<=-log(u2))break;}return mu+z*sigma;}
     private: Xor128 gen;
 }myrand;
-
-namespace esc{const vector<int>colors{196,208,226,46,77,14,12,13,5,136,195,245};constexpr int RED=0,ORANGE=1,YELLOW=2,LIGHTGREEN=3,GREEN=4,AQUA=5,BLUE=6,PINK=7,PURPLE=8,BROWN=9,WHITE=10,GRAY=11;
-void back(int n){cerr<<"\e["<<n<<"A";}void locate(int r,int c){cerr<<"\e["<<r+1<<+";"<<c+1<<"H";}void reset(){cerr<<"\e[0m";}
-void color(int c){cerr<<"\e[38;5;"<<colors[c]<<"m";}void color(int c,string s){color(c);cerr<<s;reset();}void color(int c,int s){color(c,to_string(s));}
-void bcolor(int c){cerr<<"\e[4;"<<colors[c]<<"m";}void bcolor(int c,string s){bcolor(c);cerr<<s;reset();}void bcolor(int c,int s){color(c,to_string(s));}
-string with_sep(int n,char sep=','){string ret="",s=to_string(n);reverse(s.begin(),s.end());for(int i=0,len=s.length();i<=len;){ret+=s.substr(i,3);if((i+=3)>=len)break;ret+=sep;}reverse(ret.begin(),ret.end());return ret;}
-string with_fill(int n,int num=3,char space=' '){string s=to_string(n);return string(max(0,num-int(s.size())),space)+s;}
-// **VISUALIZER-TEMPLATE**
-// int N=20,M=30,vis_length=10;
-// for(int vis_cnt=1;vis_cnt<=vis_length;vis_cnt++){cerr<<esc::with_fill(vis_cnt)<<"/"<<vis_length<<endl;cerr<<"";
-// for(int x=0;x<M;x++)esc::color(esc::GRAY,x%10);cerr<<""<<endl;
-// for(int y=0;y<N;y++){esc::color(esc::GRAY,y%10);esc::reset();
-// for(int x=0;x<M;x++){/*wirte here*/esc::bcolor(y%10,myrand.randint(0,9));}esc::color(esc::GRAY,y%10);cerr<<endl;}cerr<<"";
-// for(int x=0;x<M;x++)esc::color(esc::GRAY,x%10);cerr<<""<<endl;if(vis_cnt<vis_length)esc::back(N+2+1);usleep(1.0*1000000);}
-}// namespace esc
 
 struct YX {
     int y, x;
@@ -156,28 +128,34 @@ struct Rect {
         YXs[1] = YX(y2, x2);
         YXs[2] = YX(y3, x3);
         YXs[3] = YX(y4, x4);
-        int dir1 = getDir(YXs[1] - YXs[0]);
-        int dir2 = getDir(YXs[2] - YXs[1]);
-        int dir3 = getDir(YXs[3] - YXs[2]);
-        int dir4 = getDir(YXs[0] - YXs[3]);
+        int dir1 = getDir(YXs[1] - YXs[0]), dir2 = getDir(YXs[2] - YXs[1]),
+            dir3 = getDir(YXs[3] - YXs[2]), dir4 = getDir(YXs[0] - YXs[3]);
         assert((dir1 + 2) % dirLen == dir2 && (dir2 + 2) % dirLen == dir3 &&
                (dir3 + 2) % dirLen == dir4 && (dir4 + 2) % dirLen == dir1);
     }
 
-    int size() const {
-        YX d1 = YXs[1] - YXs[0];
-        YX d2 = YXs[2] - YXs[0];
-        YX d3 = YXs[3] - YXs[0];
+    inline int dir() const { return getDir(YXs[1] - YXs[0]); }
+    inline int getW() const { return wTable[YXs[0].y][YXs[0].x]; }
+    inline int len() const {
+        YX d1 = YXs[1] - YXs[0], d2 = YXs[3] - YXs[0];
+        return (max(abs(d1.x), abs(d1.y)) + max(abs(d2.x), abs(d2.y)));
+    }
+    inline int size() const {
+        YX d1 = YXs[1] - YXs[0], d2 = YXs[2] - YXs[0], d3 = YXs[3] - YXs[0];
         return (abs(d1.x * d2.y - d2.x * d1.y) +
                 abs(d3.x * d2.y - d2.x * d3.y)) /
                2;
     }
-    int len() const {
-        YX d1 = YXs[1] - YXs[0];
-        YX d2 = YXs[3] - YXs[0];
-        return (max(abs(d1.x), abs(d1.y)) + max(abs(d2.x), abs(d2.y)));
+    inline bool is_valid() const {
+        assert((YXs[0].y != -1 && YXs[0].x != -1) ||
+               (YXs[0] == YXs[1] && YXs[1] == YXs[2] && YXs[2] == YXs[3]));
+        return YXs[0].y != -1;
     }
-    int dir() const { return getDir(YXs[1] - YXs[0]); }
+
+    YX topRight() const {
+        return YX(max({YXs[0].y, YXs[1].y, YXs[2].y, YXs[3].y}),
+                  max({YXs[0].x, YXs[1].x, YXs[2].x, YXs[3].x}));
+    }
 
     int _regionPoint(const YX& point) const {
         // -1    -1
@@ -201,16 +179,6 @@ struct Rect {
         }
         return ret;
     }
-    YX topRight() const {
-        return YX(max({YXs[0].y, YXs[1].y, YXs[2].y, YXs[3].y}),
-                  max({YXs[0].x, YXs[1].x, YXs[2].x, YXs[3].x}));
-    }
-    inline bool is_valid() const {
-        assert((YXs[0].y != -1 && YXs[0].x != -1) ||
-               (YXs[0] == YXs[1] && YXs[1] == YXs[2] && YXs[2] == YXs[3]));
-        return YXs[0].y != -1;
-    }
-    inline int getW() const { return wTable[YXs[0].y][YXs[0].x]; }
 
     bool is_ok(int pattern) const {
         if (len() == 2) {
@@ -251,21 +219,27 @@ struct Rect {
 };
 using Rects = vector<Rect>;
 
+int calcRawScore(const Rects& ans) {
+    double sumW = initSumW;
+    for (auto& r : ans) sumW += r.getW();
+    return int(round(scoreCoef * sumW));
+}
+
 constexpr int maxN = 61;
-// bool[]の方が速い?
 using Bitset = bitset<maxN * maxN * dirLen>;
-using Grid = bitset<maxN * maxN>;
+using Grid = bitset<maxN * maxN>;  // bool[]の方が速い?
 
 struct State {
     Bitset used;
     Grid grid;
     Rects cands;
     Rects ans;
-    const int pattern;
+    int pattern;
 
     int blocked = 0;
     int numNewPoints = 0;
 
+    State() : pattern(-1) {}
     State(const Rects& prevAns, int pattern, bool do_setup) : pattern(pattern) {
         assert(do_setup);
         ans = prevAns;
@@ -389,7 +363,7 @@ struct State {
 
     void eraseInvalid() {
         cands.erase(remove_if(cands.begin(), cands.end(),
-                              [this](const Rect& cand) {
+                              [&](const Rect& cand) {
                                   if (grid[to_idx2(cand.YXs[0])]) return true;
                                   for (auto i = 0; i < 4; i++) {
                                       int x = cand.YXs[i].x, y = cand.YXs[i].y;
@@ -501,13 +475,16 @@ struct State {
             if (new_rect3.is_valid()) cands.push_back(new_rect3);
         }
     }
-};
 
-int calcScore(const Rects& ans) {
-    double sumW = initSumW;
-    for (auto& r : ans) sumW += r.getW();
-    return int(round(scoreCoef * sumW));
-}
+    void _setTemporaryScore(int tempScore) { _temporaryScore = tempScore; }
+    int _getTemporaryScore() const {
+        assert(_temporaryScore != -1);
+        return _temporaryScore;
+    }
+
+   private:
+    int _temporaryScore = -1;
+};
 
 void readInput() {
     cin >> N >> M;
@@ -533,11 +510,11 @@ void readInput() {
 
 void printAns(const Rects& ans) {
 #ifdef TEST
-    cout << calcScore(ans) << endl;
+    cout << calcRawScore(ans) << endl;
     cerr << ans.size() << endl;
     for (auto& r : ans) cerr << r << endl;
 #else
-    debug(calcScore(ans));
+    debug(calcRawScore(ans));
     cout << ans.size() << endl;
     for (auto& r : ans) cout << r << endl;
 #endif
@@ -545,14 +522,37 @@ void printAns(const Rects& ans) {
 
 Rects solveSub(int pattern, const Rects& prevAns = {}) {
     State state(prevAns, pattern, true);
+
+    vector<vector<int>> initRects = {
+        {13, 21, 12, 20, 17, 15, 18, 16}, {11, 19, 9, 19, 9, 13, 11, 13},
+        {15, 20, 12, 20, 12, 16, 15, 16}, {16, 21, 15, 20, 17, 18, 18, 19},
+        {19, 14, 17, 14, 17, 12, 19, 12}, {14, 10, 15, 9, 16, 10, 15, 11},
+        {19, 16, 17, 18, 15, 16, 17, 14},  //
+    };
+
+    for (int i = 0; i < int(initRects.size()); i++) {
+        int j = 0;
+        for (; j < int(state.cands.size()); j++) {
+            const auto yx = state.cands[j].YXs;
+            bool flag =
+                initRects[i][0] == yx[0].x && initRects[i][1] == yx[0].y &&
+                initRects[i][2] == yx[1].x && initRects[i][3] == yx[1].y &&
+                initRects[i][4] == yx[2].x && initRects[i][5] == yx[2].y &&
+                initRects[i][6] == yx[3].x && initRects[i][7] == yx[3].y;
+            if (flag) {
+                break;
+            }
+        }
+        assert(j != int(state.cands.size()));
+        state.applyRect(j, -1);
+    }
+
     int loop_cnt = 0;
     while (!state.cands.empty()) {
         loop_cnt++;
-
         state.applyAllOkRect();
         if (state.cands.empty()) break;
-
-        vector<int> eval_values(state.cands.size(), 0);
+        vector<long long> eval_values(state.cands.size(), 0);
         for (int i = int(state.cands.size()) - 1; i >= 0; i--) {
             State new_state = state;
             new_state.applyRect(i, loop_cnt);
@@ -571,55 +571,94 @@ Rects solveSub(int pattern, const Rects& prevAns = {}) {
         int best_idx =
             distance(eval_values.begin(),
                      max_element(eval_values.begin(), eval_values.end()));
-        // if (eval_values[best_idx] < -INF / 2) {
-        //     // debug(loop_cnt);
-        //     for (auto& v : eval_values) {
-        //         v += INF;
-        //         chmax(v, 0);
-        //     }
-        //     vector<int> Ps(eval_values.size());
-        //     iota(Ps.begin(), Ps.end(), 0);
-        //     best_idx = myrand.choice(Ps, eval_values);
-        // }
+        if (eval_values[best_idx] < -INF / 2) {
+            for (auto& v : eval_values) {
+                v += INF;
+                v = max(v, 0ll);
+                assert(v <= INF);
+                v *= v;
+                v = min(v, INFll / int(eval_values.size()));
+            }
+            vector<int> Ps(eval_values.size());
+            iota(Ps.begin(), Ps.end(), 0);
+            best_idx = myrand.choice(Ps, eval_values);
+        } else {
+            assert(false);
+        }
         state.applyRect(best_idx, loop_cnt);
-        // int bestIdx = -1;
-        // for (int i = 0; i < int(state.cands.size()) && bestIdx == -1; i++) {
-        //     if (state.cands[i].is_ok(state.pattern)) {
-        //         bestIdx = i;
-        //     }
-        // }
-        // if (bestIdx == -1) {
-        //     vector<int> eval_values(state.cands.size(), 0);
-        //     for (int i = 0; i < int(state.cands.size()); i++) {
-        //         eval_values[i] += state.cands[i].getW();
-        //     }
-        //     bestIdx =
-        //         distance(eval_values.begin(),
-        //                  max_element(eval_values.begin(),
-        //                  eval_values.end()));
-        // }
-        // debug(bestIdx);
-        // state.applyRect(bestIdx, loop_cnt);
     }
     return state.ans;
 }
 
+// constexpr int BEAM_WIDTH = 500;
+// void sortBeam(vector<State>& beam) {
+//     for (int i = 0; i < int(beam.size()); i++) {
+//         beam[i]._setTemporaryScore(calcRawScore(beam[i].ans));
+//     }
+//     sort(beam.begin(), beam.end(), [&](const auto& a, const auto& b) {
+//         return a._getTemporaryScore() > b._getTemporaryScore();
+//     });
+//     if (int(beam.size()) > BEAM_WIDTH) {
+//         beam.resize(BEAM_WIDTH);
+//     }
+// }
+// void beamSearch() {
+//     Rects bestAns;
+//     int bestScore = -1;
+
+//     vector<State> now_beam;
+//     for (int pattern = 0; pattern < 16; pattern++) {
+//         now_beam.emplace_back(pattern, true);
+//         now_beam.back().applyAllOkRect();
+//     }
+//     sortBeam(now_beam);
+
+//     int loop_cnt = 0;
+//     while (timer.ms() < TL - 1000 && !now_beam.empty()) {
+//         debug(now_beam.size());
+//         loop_cnt++;
+//         vector<State> new_beam;
+//         for (const auto& state : now_beam) {
+//             if (state.cands.empty()) {
+//                 debug("!");
+//                 if (chmax(bestScore, calcRawScore(state.ans))) {
+//                     debug(bestScore);
+//                     bestAns = state.ans;
+//                 }
+//             } else {
+//                 for (int candIdx = 0; candIdx < int(state.cands.size());
+//                      candIdx++) {
+//                     new_beam.emplace_back(state);
+//                     new_beam.back().applyRect(candIdx, loop_cnt);
+//                 }
+//             }
+//         }
+//         debug(new_beam.size());
+//         sortBeam(new_beam);
+//         swap(now_beam, new_beam);
+//         debug(now_beam.size());
+//     }
+
+//     debug(loop_cnt);
+
+//     printAns(bestAns);
+// }
+
 void solve() {
     Rects bestAns;
     int bestScore = -1;
-    int bestPattern = -1;
-
-    // while (timer.ms() < 10000) {
-    for (int pattern = 0; pattern < 16; pattern++) {
-        debug(pattern);
-        Rects ans = solveSub(pattern);
-        if (chmax(bestScore, calcScore(ans))) {
-            bestPattern = pattern;
-            // debug("!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            swap(bestAns, ans);
+    [[maybe_unused]] int bestPattern = -1;
+    while (timer.ms() < TL - 500) {
+        for (int pattern = 0; pattern < 16; pattern++) {
+            if (timer.ms() > TL - 500) break;
+            debug(pattern);
+            Rects ans = solveSub(pattern);
+            if (chmax(bestScore, calcRawScore(ans))) {
+                bestPattern = pattern;
+                swap(bestAns, ans);
+            }
         }
     }
-    // }
     printAns(bestAns);
     debug(bestPattern);
 }
@@ -632,6 +671,7 @@ int main() {
 
     timer.start();
     solve();
+    // beamSearch();
     timer.stop();
 
 #ifdef hari64
