@@ -6,4 +6,4 @@ for i in range(N):
     rects += "{"+",".join(As)+"},\n"
 
 print()
-print("{\n"+"".join(rects)+"}\n")
+print("{\n"+"".join(rects)+"};\n")
