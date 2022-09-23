@@ -86,7 +86,7 @@ struct YX {
 };
 // clang-format on
 
-constexpr int TL = 49000;
+constexpr int TL = 4900;
 
 int N;
 int M;
@@ -407,6 +407,8 @@ struct State {
                               }),
                     cands.end());
 
+        if (oks.empty()) return;
+
         while (!oks.empty()) {
             Rect rect = oks.back();
             oks.pop_back();
@@ -523,24 +525,23 @@ void printAns(const Rects& ans) {
 Rects solveSub(int pattern, const Rects& prevAns = {}) {
     State state(prevAns, pattern, true);
 
-    vector<vector<int>> initRects = {};
-
-    for (int i = 0; i < int(initRects.size()); i++) {
-        int j = 0;
-        for (; j < int(state.cands.size()); j++) {
-            const auto yx = state.cands[j].YXs;
-            bool flag =
-                initRects[i][0] == yx[0].x && initRects[i][1] == yx[0].y &&
-                initRects[i][2] == yx[1].x && initRects[i][3] == yx[1].y &&
-                initRects[i][4] == yx[2].x && initRects[i][5] == yx[2].y &&
-                initRects[i][6] == yx[3].x && initRects[i][7] == yx[3].y;
-            if (flag) {
-                break;
-            }
-        }
-        assert(j != int(state.cands.size()));
-        state.applyRect(j, -1);
-    }
+    // vector<vector<int>> initRects = {};
+    // for (int i = 0; i < int(initRects.size()); i++) {
+    //     int j = 0;
+    //     for (; j < int(state.cands.size()); j++) {
+    //         const auto yx = state.cands[j].YXs;
+    //         bool flag =
+    //             initRects[i][0] == yx[0].x && initRects[i][1] == yx[0].y &&
+    //             initRects[i][2] == yx[1].x && initRects[i][3] == yx[1].y &&
+    //             initRects[i][4] == yx[2].x && initRects[i][5] == yx[2].y &&
+    //             initRects[i][6] == yx[3].x && initRects[i][7] == yx[3].y;
+    //         if (flag) {
+    //             break;
+    //         }
+    //     }
+    //     assert(j != int(state.cands.size()));
+    //     state.applyRect(j, -1);
+    // }
 
     int loop_cnt = 0;
     while (!state.cands.empty()) {
@@ -557,81 +558,87 @@ Rects solveSub(int pattern, const Rects& prevAns = {}) {
             if (state.cands[i].len() <= 2) {
                 eval_values[i] *= 2;
             }
-            if (!state.cands[i].is_ok(state.pattern)) {
-                eval_values[i] -= INF;
-            } else {
-                assert(false);
-            }
         }
         int best_idx =
             distance(eval_values.begin(),
                      max_element(eval_values.begin(), eval_values.end()));
-        if (eval_values[best_idx] < -INF / 2) {
-            for (auto& v : eval_values) {
-                v += INF;
-                v = max(v, 0ll);
-                assert(v <= INF);
-                v *= v;
-                v = min(v, INFll / int(eval_values.size()));
-            }
-            vector<int> Ps(eval_values.size());
-            iota(Ps.begin(), Ps.end(), 0);
-            best_idx = myrand.choice(Ps, eval_values);
-        } else {
-            assert(false);
+        for (auto& v : eval_values) {
+            v = max(v, 0ll);
+            assert(v <= INF);
+            v *= v;
+            v = min(v, INFll / int(eval_values.size()));
         }
+        vector<int> Ps(eval_values.size());
+        iota(Ps.begin(), Ps.end(), 0);
+        best_idx = myrand.choice(Ps, eval_values);
         state.applyRect(best_idx, loop_cnt);
     }
     return state.ans;
 }
 
-constexpr int BEAM_WIDTH = 10000;
 void sortBeam(vector<State>& beam) {
-    // for (int i = 0; i < int(beam.size()); i++) {
-    //     beam[i]._setTemporaryScore(1000 + calcRawScore(beam[i].ans) / 100000
-    //     +
-    //                                beam[i].numNewPoints - beam[i].blocked);
-    // }
     sort(beam.begin(), beam.end(), [&](const auto& a, const auto& b) {
         return a._getTemporaryScore() > b._getTemporaryScore();
     });
-    if (int(beam.size()) > BEAM_WIDTH) {
-        beam.resize(BEAM_WIDTH);
+}
+
+void playOut(State& state) {
+    state.applyAllOkRect();
+    while (!state.cands.empty()) {
+        vector<long long> eval_values(state.cands.size(), 0);
+        for (int i = int(state.cands.size()) - 1; i >= 0; i--) {
+            State new_state = state;
+            new_state.applyRect(i, -1);
+            for (auto& new_cand : new_state.cands) {
+                eval_values[i] += new_cand.getW();
+            }
+            // if (state.cands[i].len() <= 2) {
+            //     eval_values[i] *= 2;
+            // }
+        }
+        int best_idx =
+            distance(eval_values.begin(),
+                     max_element(eval_values.begin(), eval_values.end()));
+        state.applyRect(best_idx, -1);
+        state.applyAllOkRect();
     }
 }
 
-pair<Rects, int> beamSearch(int pattern) {
+pair<Rects, int> beamSearch() {
     Rects bestAns;
     int bestScore = -1;
-    vector<State> now_beam;
-    now_beam.emplace_back(pattern, true);
-    now_beam.back().applyAllOkRect();
-    now_beam.back()._setTemporaryScore(0);
-    int loop_cnt = 0;
-    while (timer.ms() < TL - 1000 && !now_beam.empty()) {
-        loop_cnt++;
-        vector<State> new_beam;
-        for (const auto& state : now_beam) {
-            if (state.cands.empty()) {
-                if (chmax(bestScore, calcRawScore(state.ans))) {
-                    debug(bestScore);
-                    bestAns = state.ans;
-                }
-            } else {
-                for (int candIdx = 0; candIdx < int(state.cands.size());
-                     candIdx++) {
-                    new_beam.emplace_back(state);
-                    new_beam.back().applyRect(candIdx, loop_cnt);
-                    new_beam.back().applyAllOkRect();
-                    new_beam.back()._setTemporaryScore(
-                        calcRawScore(new_beam.back().ans));
+
+    for (int pattern = 8; pattern < 16; pattern++) {
+        State nowState(pattern);
+        nowState.applyAllOkRect();
+
+        int loop_cnt = 0;
+        int tl = pattern * (TL - 1000) / 8;
+        while (timer.ms() < tl) {
+            loop_cnt++;
+            int tempBestScore = -1;
+            int bestCandIdx = -1;
+            if (nowState.cands.empty()) break;
+            for (int candIdx = 0; candIdx < int(nowState.cands.size());
+                 candIdx++) {
+                State temp = nowState;
+                temp.applyRect(candIdx, -1);
+                temp.applyAllOkRect();
+                playOut(temp);
+                if (chmax(tempBestScore, calcRawScore(temp.ans))) {
+                    bestCandIdx = candIdx;
+                    if (chmax(bestScore, tempBestScore)) {
+                        swap(bestAns, temp.ans);
+                    }
                 }
             }
+            assert(bestCandIdx != -1);
+            nowState.applyRect(bestCandIdx, -1);
+            nowState.applyAllOkRect();
         }
-        sortBeam(new_beam);
-        swap(now_beam, new_beam);
+        debug(loop_cnt);
     }
-    debug(loop_cnt);
+
     return {bestAns, bestScore};
 }
 
@@ -640,25 +647,22 @@ void solve() {
     int bestScore = -1;
     [[maybe_unused]] int bestPattern = -1;
 
-    for (int pattern = 5; pattern < 6; pattern++) {
-        auto [ans, score] = beamSearch(pattern);
-        if (chmax(bestScore, score)) {
-            swap(bestAns, ans);
-            bestPattern = pattern;
+    // tie(bestAns, bestScore) = beamSearch();
+
+    int cnt = 0;
+    while (timer.ms() < TL - 500) {
+        for (int pattern = 9; pattern < 10; pattern++) {
+            if (timer.ms() > TL - 500) break;
+            debug(pattern);
+            Rects ans = solveSub(pattern);
+            cnt++;
+            if (chmax(bestScore, calcRawScore(ans))) {
+                bestPattern = pattern;
+                swap(bestAns, ans);
+            }
         }
     }
-
-    // while (timer.ms() < TL - 500) {
-    //     for (int pattern = 0; pattern < 16; pattern++) {
-    //         if (timer.ms() > TL - 500) break;
-    //         debug(pattern);
-    //         Rects ans = solveSub(pattern);
-    //         if (chmax(bestScore, calcRawScore(ans))) {
-    //             bestPattern = pattern;
-    //             swap(bestAns, ans);
-    //         }
-    //     }
-    // }
+    debug(cnt);
 
     printAns(bestAns);
     debug(bestPattern);
