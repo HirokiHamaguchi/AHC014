@@ -86,7 +86,7 @@ struct YX {
 };
 // clang-format on
 
-constexpr int TL = 4900;
+constexpr int TL = 49000;
 
 int N;
 int M;
@@ -523,12 +523,7 @@ void printAns(const Rects& ans) {
 Rects solveSub(int pattern, const Rects& prevAns = {}) {
     State state(prevAns, pattern, true);
 
-    vector<vector<int>> initRects = {
-        {13, 21, 12, 20, 17, 15, 18, 16}, {11, 19, 9, 19, 9, 13, 11, 13},
-        {15, 20, 12, 20, 12, 16, 15, 16}, {16, 21, 15, 20, 17, 18, 18, 19},
-        {19, 14, 17, 14, 17, 12, 19, 12}, {14, 10, 15, 9, 16, 10, 15, 11},
-        {19, 16, 17, 18, 15, 16, 17, 14},  //
-    };
+    vector<vector<int>> initRects = {};
 
     for (int i = 0; i < int(initRects.size()); i++) {
         int j = 0;
@@ -590,75 +585,81 @@ Rects solveSub(int pattern, const Rects& prevAns = {}) {
     return state.ans;
 }
 
-// constexpr int BEAM_WIDTH = 500;
-// void sortBeam(vector<State>& beam) {
-//     for (int i = 0; i < int(beam.size()); i++) {
-//         beam[i]._setTemporaryScore(calcRawScore(beam[i].ans));
-//     }
-//     sort(beam.begin(), beam.end(), [&](const auto& a, const auto& b) {
-//         return a._getTemporaryScore() > b._getTemporaryScore();
-//     });
-//     if (int(beam.size()) > BEAM_WIDTH) {
-//         beam.resize(BEAM_WIDTH);
-//     }
-// }
-// void beamSearch() {
-//     Rects bestAns;
-//     int bestScore = -1;
+constexpr int BEAM_WIDTH = 10000;
+void sortBeam(vector<State>& beam) {
+    // for (int i = 0; i < int(beam.size()); i++) {
+    //     beam[i]._setTemporaryScore(1000 + calcRawScore(beam[i].ans) / 100000
+    //     +
+    //                                beam[i].numNewPoints - beam[i].blocked);
+    // }
+    sort(beam.begin(), beam.end(), [&](const auto& a, const auto& b) {
+        return a._getTemporaryScore() > b._getTemporaryScore();
+    });
+    if (int(beam.size()) > BEAM_WIDTH) {
+        beam.resize(BEAM_WIDTH);
+    }
+}
 
-//     vector<State> now_beam;
-//     for (int pattern = 0; pattern < 16; pattern++) {
-//         now_beam.emplace_back(pattern, true);
-//         now_beam.back().applyAllOkRect();
-//     }
-//     sortBeam(now_beam);
-
-//     int loop_cnt = 0;
-//     while (timer.ms() < TL - 1000 && !now_beam.empty()) {
-//         debug(now_beam.size());
-//         loop_cnt++;
-//         vector<State> new_beam;
-//         for (const auto& state : now_beam) {
-//             if (state.cands.empty()) {
-//                 debug("!");
-//                 if (chmax(bestScore, calcRawScore(state.ans))) {
-//                     debug(bestScore);
-//                     bestAns = state.ans;
-//                 }
-//             } else {
-//                 for (int candIdx = 0; candIdx < int(state.cands.size());
-//                      candIdx++) {
-//                     new_beam.emplace_back(state);
-//                     new_beam.back().applyRect(candIdx, loop_cnt);
-//                 }
-//             }
-//         }
-//         debug(new_beam.size());
-//         sortBeam(new_beam);
-//         swap(now_beam, new_beam);
-//         debug(now_beam.size());
-//     }
-
-//     debug(loop_cnt);
-
-//     printAns(bestAns);
-// }
+pair<Rects, int> beamSearch(int pattern) {
+    Rects bestAns;
+    int bestScore = -1;
+    vector<State> now_beam;
+    now_beam.emplace_back(pattern, true);
+    now_beam.back().applyAllOkRect();
+    now_beam.back()._setTemporaryScore(0);
+    int loop_cnt = 0;
+    while (timer.ms() < TL - 1000 && !now_beam.empty()) {
+        loop_cnt++;
+        vector<State> new_beam;
+        for (const auto& state : now_beam) {
+            if (state.cands.empty()) {
+                if (chmax(bestScore, calcRawScore(state.ans))) {
+                    debug(bestScore);
+                    bestAns = state.ans;
+                }
+            } else {
+                for (int candIdx = 0; candIdx < int(state.cands.size());
+                     candIdx++) {
+                    new_beam.emplace_back(state);
+                    new_beam.back().applyRect(candIdx, loop_cnt);
+                    new_beam.back().applyAllOkRect();
+                    new_beam.back()._setTemporaryScore(
+                        calcRawScore(new_beam.back().ans));
+                }
+            }
+        }
+        sortBeam(new_beam);
+        swap(now_beam, new_beam);
+    }
+    debug(loop_cnt);
+    return {bestAns, bestScore};
+}
 
 void solve() {
     Rects bestAns;
     int bestScore = -1;
     [[maybe_unused]] int bestPattern = -1;
-    while (timer.ms() < TL - 500) {
-        for (int pattern = 0; pattern < 16; pattern++) {
-            if (timer.ms() > TL - 500) break;
-            debug(pattern);
-            Rects ans = solveSub(pattern);
-            if (chmax(bestScore, calcRawScore(ans))) {
-                bestPattern = pattern;
-                swap(bestAns, ans);
-            }
+
+    for (int pattern = 5; pattern < 6; pattern++) {
+        auto [ans, score] = beamSearch(pattern);
+        if (chmax(bestScore, score)) {
+            swap(bestAns, ans);
+            bestPattern = pattern;
         }
     }
+
+    // while (timer.ms() < TL - 500) {
+    //     for (int pattern = 0; pattern < 16; pattern++) {
+    //         if (timer.ms() > TL - 500) break;
+    //         debug(pattern);
+    //         Rects ans = solveSub(pattern);
+    //         if (chmax(bestScore, calcRawScore(ans))) {
+    //             bestPattern = pattern;
+    //             swap(bestAns, ans);
+    //         }
+    //     }
+    // }
+
     printAns(bestAns);
     debug(bestPattern);
 }
@@ -671,7 +672,6 @@ int main() {
 
     timer.start();
     solve();
-    // beamSearch();
     timer.stop();
 
 #ifdef hari64
