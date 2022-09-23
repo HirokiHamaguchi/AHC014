@@ -86,7 +86,7 @@ struct YX {
 };
 // clang-format on
 
-constexpr int TL = 4900;
+constexpr int TL = 4500000;
 
 int N;
 int M;
@@ -160,15 +160,16 @@ struct Rect {
     int _regionPoint(const YX& point) const {
         // -1    -1
         //    1
-        //  2 -1 0
+        //  2 -2 0
         //    3
         // -1    -1
         if (point.y == point.x || point.y + point.x == N - 1) {
-            return -1;
+            return (point.y == point.x && point.y + point.x == N - 1) ? -2 : -1;
         } else {
             return (int(point.y + point.x < N) * 3) ^ int((point.y > point.x));
         }
     }
+
     int getRegion() const {
         int ret = -1;
         for (int i = 0; i < 4; i++) {
@@ -181,27 +182,38 @@ struct Rect {
     }
 
     bool is_ok(int pattern) const {
+        assert(0 <= pattern && pattern < 16);
         if (len() == 2) {
-            YX tr = topRight();
             if (getDir(YXs[1] - YXs[0]) % 2 == 0) {
                 // □
+                YX tr = topRight();
                 return abs(tr.y - tr.x) % 2 == (pattern & 1);
             } else {
                 // ◇
+                int centerx = YXs[0].x + YXs[1].x + YXs[2].x + YXs[3].x;
+                int centery = YXs[0].y + YXs[1].y + YXs[2].y + YXs[3].y;
+                assert(centerx % 4 == 0 && centery % 4 == 0);
+                centerx /= 4;
+                centery /= 4;
                 if ((pattern >> 3) & 1) {
-                    int region = getRegion();
-                    if (region == -1) return false;
-                    if (region % 2 == 0) {
-                        return tr.y % 2 == ((pattern >> 1) & 1);
+                    // (pattern>>2) & 1は使用しない
+                    int r = _regionPoint(YX(centery, centerx));
+                    if (r < 0) return r == -2;
+                    if (r % 2) {
+                        return (centerx % 2 == (N / 4) % 2) ^
+                               ((pattern >> 2) & 1);
                     } else {
-                        return tr.x % 2 == ((pattern >> 2) & 1);
+                        return (centery % 2 != (N / 4) % 2) ^
+                               ((pattern >> 2) & 1);
                     }
                 } else {
-                    if ((pattern >> 1) & 1) {
-                        return tr.y % 2 == ((pattern >> 2) & 1);
-                    } else {
-                        return tr.x % 2 == ((pattern >> 2) & 1);
-                    }
+                    return centery % 2 == ((pattern >> 1) & 1) &&
+                           centerx % 2 == ((pattern >> 2) & 1);
+                    // if ((pattern >> 1) & 1) {
+                    //     return centery % 2 == ((pattern >> 2) & 1);
+                    // } else {
+                    //     return centerx % 2 == ((pattern >> 2) & 1);
+                    // }
                 }
             }
         }
@@ -522,85 +534,46 @@ void printAns(const Rects& ans) {
 #endif
 }
 
-Rects solveSub(int pattern, const Rects& prevAns = {}) {
-    State state(prevAns, pattern, true);
+// Rects solveSub(int pattern, const Rects& prevAns = {}) {
+//     State state(prevAns, pattern, true);
+//     int loop_cnt = 0;
+//     while (!state.cands.empty()) {
+//         loop_cnt++;
+//         state.applyAllOkRect();
+//         break;
+//         // if (state.cands.empty()) break;
+//         // vector<long long> eval_values(state.cands.size(), 0);
+//         // for (int i = int(state.cands.size()) - 1; i >= 0; i--) {
+//         //     State new_state = state;
+//         //     new_state.applyRect(i, loop_cnt);
+//         //     for (auto& new_cand : new_state.cands) {
+//         //         eval_values[i] += new_cand.getW();
+//         //     }
+//         //     if (state.cands[i].len() <= 2) {
+//         //         eval_values[i] *= 2;
+//         //     }
+//         //     assert(!state.cands[i].is_ok(state.pattern));
+//         // }
+//         // for (auto& v : eval_values) v = v * v;
+//         // vector<int> Ps(eval_values.size());
+//         // iota(Ps.begin(), Ps.end(), 0);
+//         // int best_idx = myrand.choice(Ps, eval_values);
+//         // state.applyRect(best_idx, loop_cnt);
+//     }
+//     return state.ans;
+// }
 
-    // vector<vector<int>> initRects = {};
-    // for (int i = 0; i < int(initRects.size()); i++) {
-    //     int j = 0;
-    //     for (; j < int(state.cands.size()); j++) {
-    //         const auto yx = state.cands[j].YXs;
-    //         bool flag =
-    //             initRects[i][0] == yx[0].x && initRects[i][1] == yx[0].y &&
-    //             initRects[i][2] == yx[1].x && initRects[i][3] == yx[1].y &&
-    //             initRects[i][4] == yx[2].x && initRects[i][5] == yx[2].y &&
-    //             initRects[i][6] == yx[3].x && initRects[i][7] == yx[3].y;
-    //         if (flag) {
-    //             break;
-    //         }
-    //     }
-    //     assert(j != int(state.cands.size()));
-    //     state.applyRect(j, -1);
-    // }
-
-    int loop_cnt = 0;
-    while (!state.cands.empty()) {
-        loop_cnt++;
-        state.applyAllOkRect();
-        if (state.cands.empty()) break;
-        vector<long long> eval_values(state.cands.size(), 0);
-        for (int i = int(state.cands.size()) - 1; i >= 0; i--) {
-            State new_state = state;
-            new_state.applyRect(i, loop_cnt);
-            for (auto& new_cand : new_state.cands) {
-                eval_values[i] += new_cand.getW();
-            }
-            if (state.cands[i].len() <= 2) {
-                eval_values[i] *= 2;
-            }
-        }
-        int best_idx =
-            distance(eval_values.begin(),
-                     max_element(eval_values.begin(), eval_values.end()));
-        for (auto& v : eval_values) {
-            v = max(v, 0ll);
-            assert(v <= INF);
-            v *= v;
-            v = min(v, INFll / int(eval_values.size()));
-        }
-        vector<int> Ps(eval_values.size());
-        iota(Ps.begin(), Ps.end(), 0);
-        best_idx = myrand.choice(Ps, eval_values);
-        state.applyRect(best_idx, loop_cnt);
-    }
-    return state.ans;
-}
-
+size_t BEAM_WIDTH = 100000;
 void sortBeam(vector<State>& beam) {
+    for (auto& s : beam) {
+        s._setTemporaryScore(calcRawScore(s.ans) / sqrt(1 + s.blocked) *
+                             (0.5 + myrand.random()));
+    }
     sort(beam.begin(), beam.end(), [&](const auto& a, const auto& b) {
         return a._getTemporaryScore() > b._getTemporaryScore();
     });
-}
-
-void playOut(State& state) {
-    state.applyAllOkRect();
-    while (!state.cands.empty()) {
-        vector<long long> eval_values(state.cands.size(), 0);
-        for (int i = int(state.cands.size()) - 1; i >= 0; i--) {
-            State new_state = state;
-            new_state.applyRect(i, -1);
-            for (auto& new_cand : new_state.cands) {
-                eval_values[i] += new_cand.getW();
-            }
-            // if (state.cands[i].len() <= 2) {
-            //     eval_values[i] *= 2;
-            // }
-        }
-        int best_idx =
-            distance(eval_values.begin(),
-                     max_element(eval_values.begin(), eval_values.end()));
-        state.applyRect(best_idx, -1);
-        state.applyAllOkRect();
+    if (beam.size() > BEAM_WIDTH) {
+        beam.resize(BEAM_WIDTH);
     }
 }
 
@@ -608,36 +581,41 @@ pair<Rects, int> beamSearch() {
     Rects bestAns;
     int bestScore = -1;
 
-    for (int pattern = 8; pattern < 16; pattern++) {
-        State nowState(pattern);
-        nowState.applyAllOkRect();
+    State nowState(6);
+    nowState.applyAllOkRect();
 
-        int loop_cnt = 0;
-        int tl = pattern * (TL - 1000) / 8;
-        while (timer.ms() < tl) {
-            loop_cnt++;
-            int tempBestScore = -1;
-            int bestCandIdx = -1;
-            if (nowState.cands.empty()) break;
-            for (int candIdx = 0; candIdx < int(nowState.cands.size());
-                 candIdx++) {
-                State temp = nowState;
-                temp.applyRect(candIdx, -1);
-                temp.applyAllOkRect();
-                playOut(temp);
-                if (chmax(tempBestScore, calcRawScore(temp.ans))) {
-                    bestCandIdx = candIdx;
-                    if (chmax(bestScore, tempBestScore)) {
-                        swap(bestAns, temp.ans);
-                    }
+    vector<State> beam = {nowState};
+
+    int loop_cnt = 0;
+    while (timer.ms() < TL) {
+        loop_cnt++;
+        debug(loop_cnt);
+        if (beam.empty()) break;
+        vector<State> nextBeam;
+        for (auto& state : beam) {
+            vector<pair<int, int>> eval(state.cands.size());
+            if (state.cands.empty()) {
+                if (chmax(bestScore, calcRawScore(state.ans))) {
+                    debug(bestScore);
+                    bestAns = state.ans;
+                    continue;
                 }
             }
-            assert(bestCandIdx != -1);
-            nowState.applyRect(bestCandIdx, -1);
-            nowState.applyAllOkRect();
+            for (int i = 0; i < int(state.cands.size()); i++) {
+                eval[i] = {state.cands[i].getW() / state.cands[i].size(), i};
+            }
+            sort(eval.rbegin(), eval.rend());
+            for (int i = 0; i < min(3, int(eval.size())); i++) {
+                State newState = state;
+                newState.applyRect(eval[i].second, -1);
+                newState.applyAllOkRect();
+                nextBeam.push_back(newState);
+            }
         }
-        debug(loop_cnt);
+        sortBeam(nextBeam);
+        swap(beam, nextBeam);
     }
+    debug(loop_cnt);
 
     return {bestAns, bestScore};
 }
@@ -647,22 +625,21 @@ void solve() {
     int bestScore = -1;
     [[maybe_unused]] int bestPattern = -1;
 
-    // tie(bestAns, bestScore) = beamSearch();
+    tie(bestAns, bestScore) = beamSearch();
 
-    int cnt = 0;
-    while (timer.ms() < TL - 500) {
-        for (int pattern = 9; pattern < 10; pattern++) {
-            if (timer.ms() > TL - 500) break;
-            debug(pattern);
-            Rects ans = solveSub(pattern);
-            cnt++;
-            if (chmax(bestScore, calcRawScore(ans))) {
-                bestPattern = pattern;
-                swap(bestAns, ans);
-            }
-        }
-    }
-    debug(cnt);
+    // while (timer.ms() < TL) {
+    //     for (int pattern = 0; pattern < 8; pattern++) {
+    //         if (timer.ms() > TL) {
+    //             break;
+    //         }
+    //         debug(pattern);
+    //         Rects ans = solveSub(pattern);
+    //         if (chmax(bestScore, calcRawScore(ans))) {
+    //             bestPattern = pattern;
+    //             swap(bestAns, ans);
+    //         }
+    //     }
+    // }
 
     printAns(bestAns);
     debug(bestPattern);
