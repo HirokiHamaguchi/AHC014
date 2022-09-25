@@ -291,7 +291,9 @@ struct StateInfo {
     void setTemporaryScore(int loop_cnt, const Rects& ans,
                            const Rects& newlyAns) {
         if (loop_cnt < 20) {
-            _temporaryScore = ok_nums * (0.9 + 0.2 * myrand.random());
+            _temporaryScore = sqrt(sqrt(1 + ok_nums)) *
+                              calcRawScore(ans, newlyAns) *
+                              (0.9 + 0.2 * myrand.random());
         } else {
             _temporaryScore = calcRawScore(ans, newlyAns);
         }
@@ -645,7 +647,7 @@ void readInput() {
     for (auto& p : POINTS) initSumW += wTable[p.y][p.x];
     scoreCoef = 1e6 * (double(N * N) / double(M)) / double(S);
     if (N <= 41) {
-        BEAM_WIDTH = 1000;
+        BEAM_WIDTH = 800;
     } else if (N <= 51) {
         BEAM_WIDTH = 300;
     } else {
@@ -719,6 +721,7 @@ void genTxtOfBeamContent(const vector<State>& beam) {
 pair<Rects, int> beamSearch() {
     Rects bestAns;
     int bestScore = -1;
+    [[maybe_unused]] int bestPattern = -1;
 
     vector<State> nowBeam;
     for (int pattern = 0; pattern < PATTERN_NUM; pattern++) {
@@ -738,6 +741,7 @@ pair<Rects, int> beamSearch() {
             if (state.cands.empty()) {
                 if (chmax(bestScore, calcRawScore(state.ans))) {
                     swap(bestAns, state.ans);
+                    bestPattern = state.info.pattern;
                 }
                 continue;
             }
@@ -754,6 +758,7 @@ pair<Rects, int> beamSearch() {
         transferBeam(nowBeam, nextBeam, loop_cnt);
     }
     debug(loop_cnt);
+    debug(bestPattern);
 
     return {bestAns, bestScore};
 }
