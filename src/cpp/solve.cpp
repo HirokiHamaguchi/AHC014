@@ -265,6 +265,7 @@ int calcRawScore(const Rects& ans, const Rects& newlyAns) {
     return int(round(scoreCoef * sumW));
 }
 
+int MODE = 0;
 struct StateInfo {
     int stateIdx = -1;
     int candIdx = -1;
@@ -291,9 +292,15 @@ struct StateInfo {
     void setTemporaryScore(int loop_cnt, const Rects& ans,
                            const Rects& newlyAns) {
         if (loop_cnt < 20) {
-            _temporaryScore = sqrt(sqrt(1 + ok_nums)) *
-                              calcRawScore(ans, newlyAns) *
-                              (0.9 + 0.2 * myrand.random());
+            if (MODE == 0) {
+                _temporaryScore = ok_nums * (0.9 + 0.2 * myrand.random());
+            } else if (MODE == 1) {
+                _temporaryScore = sqrt(sqrt(1 + ok_nums)) *
+                                  calcRawScore(ans, newlyAns) *
+                                  (0.9 + 0.2 * myrand.random());
+            } else {
+                assert(false);
+            }
         } else {
             _temporaryScore = calcRawScore(ans, newlyAns);
         }
@@ -678,6 +685,8 @@ void transferBeam(vector<State>& nowBeam, Beam& nextBeam, int loop_cnt) {
     vector<State> newNowBeam;
     set<int> seen;
     vector<int> seen_patterns(PATTERN_NUM, 0);
+    int now = timer.ms();
+    if (now > TL) BEAM_WIDTH = 5;
     while (!nextBeam.empty() && newNowBeam.size() < BEAM_WIDTH) {
         const StateInfo selected = nextBeam.top();
         nextBeam.pop();
@@ -689,7 +698,7 @@ void transferBeam(vector<State>& nowBeam, Beam& nextBeam, int loop_cnt) {
         newNowBeam.back().applyAllOkRect();
         assert(newNowBeam.back().info.hash() == selected.hash());
     }
-    if (loop_cnt < 20) {  // パラメータ
+    if (now < TL && loop_cnt < 20) {  // パラメータ
         while (!nextBeam.empty()) {
             const StateInfo selected = nextBeam.top();
             nextBeam.pop();
@@ -730,11 +739,10 @@ pair<Rects, int> beamSearch() {
     }
 
     int loop_cnt = 0;
-    while (timer.ms() < TL) {
+    while (!nowBeam.empty()) {
         loop_cnt++;
         debug(loop_cnt);
         debug(nowBeam.size());
-        if (nowBeam.empty()) break;
         Beam nextBeam{compare};
         for (int stateIdx = 0; stateIdx < int(nowBeam.size()); stateIdx++) {
             auto& state = nowBeam[stateIdx];
@@ -745,9 +753,6 @@ pair<Rects, int> beamSearch() {
                 }
                 continue;
             }
-            if (timer.ms() > TL) break;
-
-            // debug(state.cands.size());
             for (int candIdx = 0; candIdx < int(state.cands.size());
                  candIdx++) {
                 StateInfo new_state_info =
@@ -765,21 +770,22 @@ pair<Rects, int> beamSearch() {
 
 // Rects solveSimple(int pattern) {
 //     State state(pattern);
+//     state.applyAllOkRect();
+//     int loop_cnt = 0;
 //     while (!state.cands.empty()) {
-//         state.applyAllOkRect();
+//         loop_cnt++;
 //         if (state.cands.empty()) break;
-//         vector<int> eval_values(state.cands.size(), 0);
-//         for (int i = int(state.cands.size()) - 1; i >= 0; i--) {
-//             State new_state = state;
-//             new_state.applyRect(i);
-//             for (auto& new_cand : new_state.cands)
-//                 eval_values[i] += new_cand.getW();
-//             if (state.cands[i].len() <= 2) eval_values[i] *= 2;
+//         int subBestScore = 0;
+//         int subBestCandIdx = -1;
+//         for (int candIdx = 0; candIdx < int(state.cands.size()); candIdx++) {
+//             StateInfo new_state_info = state.IfDoTheStep(loop_cnt, 0,
+//             candIdx); if (chmax(subBestScore,
+//             new_state_info.getTemporaryScore())) {
+//                 subBestCandIdx = candIdx;
+//             }
 //         }
-//         int best_idx =
-//             distance(eval_values.begin(),
-//                      max_element(eval_values.begin(), eval_values.end()));
-//         state.applyRect(best_idx);
+//         state.applyRect(subBestCandIdx);
+//         state.applyAllOkRect();
 //     }
 //     return state.ans;
 // }
@@ -788,17 +794,24 @@ void solve() {
     Rects bestAns;
     int bestScore = -1;
 
-    // for (int pattern = 0; pattern < 4; pattern++) {
+    // // 保険 使われない方が望ましい
+    // for (int pattern = 0; pattern < 8; pattern++) {
     //     Rects ans = solveSimple(pattern);
     //     if (chmax(bestScore, calcRawScore(ans))) {
     //         swap(bestAns, ans);
     //     }
     // }
 
-    auto [beamAns, beamScore] = beamSearch();
+    MODE = 0;
+    auto [beamAns1, beamScore1] = beamSearch();
+    if (chmax(bestScore, beamScore1)) {
+        swap(bestAns, beamAns1);
+    }
 
-    if (chmax(bestScore, beamScore)) {
-        swap(bestAns, beamAns);
+    MODE = 1;
+    auto [beamAns2, beamScore2] = beamSearch();
+    if (chmax(bestScore, beamScore2)) {
+        swap(bestAns, beamAns2);
     }
 
     printAns(bestAns);
