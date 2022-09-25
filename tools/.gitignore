@@ -4,3 +4,5 @@
 !images/0003.html
 !images/0004.html
 /images
+
+target/.rustc_info.json
