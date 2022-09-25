@@ -100,13 +100,13 @@ constexpr int DY[8] = {0, 1, 1, 1, 0, -1, -1, -1};
 constexpr int maxN = 61;
 constexpr int PATTERN_NUM = 16;
 constexpr int HASH_SIZE = 16;
-constexpr size_t BEAM_WIDTH = 300;
 
 using Bitset = bitset<maxN * maxN * dirLen>;
 using Grid = bitset<maxN * maxN>;
 
 int initSumW;
 double scoreCoef;
+size_t BEAM_WIDTH;
 
 inline int to_idx2(int y, int x) { return y * N + x; };
 inline int to_idx2(const YX& yx) { return to_idx2(yx.y, yx.x); };
@@ -644,6 +644,13 @@ void readInput() {
     initSumW = 0;
     for (auto& p : POINTS) initSumW += wTable[p.y][p.x];
     scoreCoef = 1e6 * (double(N * N) / double(M)) / double(S);
+    if (N <= 41) {
+        BEAM_WIDTH = 1000;
+    } else if (N <= 51) {
+        BEAM_WIDTH = 300;
+    } else {
+        BEAM_WIDTH = 200;
+    }
     HASH.setup();
 }
 
@@ -751,37 +758,37 @@ pair<Rects, int> beamSearch() {
     return {bestAns, bestScore};
 }
 
-Rects solveSimple(int pattern) {
-    State state(pattern);
-    while (!state.cands.empty()) {
-        state.applyAllOkRect();
-        if (state.cands.empty()) break;
-        vector<int> eval_values(state.cands.size(), 0);
-        for (int i = int(state.cands.size()) - 1; i >= 0; i--) {
-            State new_state = state;
-            new_state.applyRect(i);
-            for (auto& new_cand : new_state.cands)
-                eval_values[i] += new_cand.getW();
-            if (state.cands[i].len() <= 2) eval_values[i] *= 2;
-        }
-        int best_idx =
-            distance(eval_values.begin(),
-                     max_element(eval_values.begin(), eval_values.end()));
-        state.applyRect(best_idx);
-    }
-    return state.ans;
-}
+// Rects solveSimple(int pattern) {
+//     State state(pattern);
+//     while (!state.cands.empty()) {
+//         state.applyAllOkRect();
+//         if (state.cands.empty()) break;
+//         vector<int> eval_values(state.cands.size(), 0);
+//         for (int i = int(state.cands.size()) - 1; i >= 0; i--) {
+//             State new_state = state;
+//             new_state.applyRect(i);
+//             for (auto& new_cand : new_state.cands)
+//                 eval_values[i] += new_cand.getW();
+//             if (state.cands[i].len() <= 2) eval_values[i] *= 2;
+//         }
+//         int best_idx =
+//             distance(eval_values.begin(),
+//                      max_element(eval_values.begin(), eval_values.end()));
+//         state.applyRect(best_idx);
+//     }
+//     return state.ans;
+// }
 
 void solve() {
     Rects bestAns;
     int bestScore = -1;
 
-    for (int pattern = 0; pattern < 4; pattern++) {
-        Rects ans = solveSimple(pattern);
-        if (chmax(bestScore, calcRawScore(ans))) {
-            swap(bestAns, ans);
-        }
-    }
+    // for (int pattern = 0; pattern < 4; pattern++) {
+    //     Rects ans = solveSimple(pattern);
+    //     if (chmax(bestScore, calcRawScore(ans))) {
+    //         swap(bestAns, ans);
+    //     }
+    // }
 
     auto [beamAns, beamScore] = beamSearch();
 
