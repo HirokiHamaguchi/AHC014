@@ -316,7 +316,7 @@ fn rect(x: i32, y: i32, w: i32, h: i32, fill: &str) -> Rectangle {
         .set("fill", fill)
 }
 
-pub fn vis(input: &Input, out: &[[P; 4]], show_grid: bool) -> (i64, String, String) {
+pub fn vis(input: &Input, out: &[[P; 4]], show_grid: bool, mode: i32) -> (i64, String, String) {
     let D = 800 / input.N;
     let H = input.N * D;
     let W = input.N * D;
@@ -356,7 +356,7 @@ pub fn vis(input: &Input, out: &[[P; 4]], show_grid: bool) -> (i64, String, Stri
             }
         }
     }
-    for rect in out {
+    for (idx, rect) in out.iter().enumerate() {
         let d1x = rect[1].0 - rect[0].0;
         let d1y = rect[1].1 - rect[0].1;
         let d2x = rect[3].0 - rect[0].0;
@@ -365,15 +365,30 @@ pub fn vis(input: &Input, out: &[[P; 4]], show_grid: bool) -> (i64, String, Stri
         for i in 0..4 {
             let (x1, y1) = rect[i];
             let (x2, y2) = rect[(i + 1) % 4];
-            doc = doc.add(
-                Line::new()
-                    .set("x1", D / 2 + x1 as usize * D)
-                    .set("y1", H - D / 2 - y1 as usize * D)
-                    .set("x2", D / 2 + x2 as usize * D)
-                    .set("y2", H - D / 2 - y2 as usize * D)
-                    .set("stroke", if len == 2 { "black" } else { "purple" })
-                    .set("stroke-width", 2),
-            );
+            if mode == 0 {
+                doc = doc.add(
+                    Line::new()
+                        .set("x1", D / 2 + x1 as usize * D)
+                        .set("y1", H - D / 2 - y1 as usize * D)
+                        .set("x2", D / 2 + x2 as usize * D)
+                        .set("y2", H - D / 2 - y2 as usize * D)
+                        .set("stroke", if len == 2 { "black" } else { "purple" })
+                        .set("stroke-width", 2),
+                );
+            } else {
+                doc = doc.add(
+                    Line::new()
+                        .set("x1", D / 2 + x1 as usize * D)
+                        .set("y1", H - D / 2 - y1 as usize * D)
+                        .set("x2", D / 2 + x2 as usize * D)
+                        .set("y2", H - D / 2 - y2 as usize * D)
+                        .set(
+                            "stroke",
+                            format!("hsl({},100%,50%)", (360 * idx / out.len()).to_string()),
+                        )
+                        .set("stroke-width", 2),
+                );
+            }
         }
     }
     for x in 0..input.N {
@@ -385,7 +400,7 @@ pub fn vis(input: &Input, out: &[[P; 4]], show_grid: bool) -> (i64, String, Stri
                     .set("cx", D / 2 + x * D)
                     .set("cy", H - D / 2 - y * D)
                     .set("r", (D / 4).max(5))
-                    .set("fill", "blue")
+                    .set("fill", if mode == 0 { "blue" } else { "gray" })
             } else if id[x][y] != out.len() - 1 {
                 Circle::new()
                     .set("cx", D / 2 + x * D)
