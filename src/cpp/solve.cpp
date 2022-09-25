@@ -86,7 +86,7 @@ struct YX {
 };
 // clang-format on
 
-constexpr int TL = 4500000;
+constexpr int TL = 4600;
 
 int N;
 int M;
@@ -96,6 +96,14 @@ vector<vector<int>> wTable;
 constexpr int dirLen = 8;
 constexpr int DX[8] = {1, 1, 0, -1, -1, -1, 0, 1};
 constexpr int DY[8] = {0, 1, 1, 1, 0, -1, -1, -1};
+
+constexpr int maxN = 61;
+constexpr int PATTERN_NUM = 16;
+constexpr int HASH_SIZE = 16;
+constexpr size_t BEAM_WIDTH = 300;
+
+using Bitset = bitset<maxN * maxN * dirLen>;
+using Grid = bitset<maxN * maxN>;
 
 int initSumW;
 double scoreCoef;
@@ -116,14 +124,26 @@ int getDir(int dy, int dx) {
 }
 int getDir(const YX& yx) { return getDir(yx.y, yx.x); }
 
+struct Hash {
+    vector<int> hash;
+    Hash() {}
+    void setup() {
+        hash.resize(N * N * dirLen);
+        for (int i = 0; i < N * N * dirLen; i++)
+            hash[i] = myrand.randint(0, 1 << HASH_SIZE);
+    }
+    inline int get2(int y, int x) { return hash[to_idx2(y, x)]; }
+    inline int get2(const YX& yx) { return hash[to_idx2(yx)]; }
+    inline int get3(int y, int x, int dir) { return hash[to_idx3(y, x, dir)]; }
+} HASH;
+
 struct Rect {
     YX YXs[4];
-    int age;
+    bool is_ok = false;
 
-    Rect() : age(-1) {}
+    Rect() {}
     Rect(int y1, int x1, int y2, int x2, int y3, int x3, int y4, int x4,
-         int age)
-        : age(age) {
+         int pattern) {
         YXs[0] = YX(y1, x1);
         YXs[1] = YX(y2, x2);
         YXs[2] = YX(y3, x3);
@@ -132,6 +152,7 @@ struct Rect {
             dir3 = getDir(YXs[3] - YXs[2]), dir4 = getDir(YXs[0] - YXs[3]);
         assert((dir1 + 2) % dirLen == dir2 && (dir2 + 2) % dirLen == dir3 &&
                (dir3 + 2) % dirLen == dir4 && (dir4 + 2) % dirLen == dir1);
+        is_ok = _is_ok(pattern);
     }
 
     inline int dir() const { return getDir(YXs[1] - YXs[0]); }
@@ -157,6 +178,27 @@ struct Rect {
                   max({YXs[0].x, YXs[1].x, YXs[2].x, YXs[3].x}));
     }
 
+    int getRegion() const {
+        int ret = -1;
+        for (int i = 0; i < 4; i++) {
+            int r = _regionPoint(YXs[i]);
+            if (r == -1) return -1;
+            if (i == 0) ret = r;
+            if (ret != r) return -1;
+        }
+        return ret;
+    }
+
+    bool operator==(Rect const& r) const {
+        return YXs[0] == r.YXs[0] && YXs[1] == r.YXs[1] && YXs[2] == r.YXs[2] &&
+               YXs[3] == r.YXs[3];
+    }
+    friend ostream& operator<<(ostream& os, const Rect& rect) {
+        return os << rect.YXs[0] << " " << rect.YXs[1] << " " << rect.YXs[2]
+                  << " " << rect.YXs[3];
+    }
+
+   private:
     int _regionPoint(const YX& point) const {
         // -1    -1
         //    1
@@ -170,19 +212,8 @@ struct Rect {
         }
     }
 
-    int getRegion() const {
-        int ret = -1;
-        for (int i = 0; i < 4; i++) {
-            int r = _regionPoint(YXs[i]);
-            if (r == -1) return -1;
-            if (i == 0) ret = r;
-            if (ret != r) return -1;
-        }
-        return ret;
-    }
-
-    bool is_ok(int pattern) const {
-        assert(0 <= pattern && pattern < 16);
+    bool _is_ok(const int pattern) const {
+        assert(0 <= pattern && pattern < PATTERN_NUM);
         if (len() == 2) {
             if (getDir(YXs[1] - YXs[0]) % 2 == 0) {
                 // □
@@ -207,26 +238,17 @@ struct Rect {
                                ((pattern >> 2) & 1);
                     }
                 } else {
-                    return centery % 2 == ((pattern >> 1) & 1) &&
-                           centerx % 2 == ((pattern >> 2) & 1);
-                    // if ((pattern >> 1) & 1) {
-                    //     return centery % 2 == ((pattern >> 2) & 1);
-                    // } else {
-                    //     return centerx % 2 == ((pattern >> 2) & 1);
-                    // }
+                    // return centery % 2 == ((pattern >> 1) & 1) &&
+                    //        centerx % 2 == ((pattern >> 2) & 1);
+                    if ((pattern >> 1) & 1) {
+                        return centery % 2 == ((pattern >> 2) & 1);
+                    } else {
+                        return centerx % 2 == ((pattern >> 2) & 1);
+                    }
                 }
             }
         }
         return false;
-    }
-
-    bool operator==(Rect const& r) const {
-        return YXs[0] == r.YXs[0] && YXs[1] == r.YXs[1] && YXs[2] == r.YXs[2] &&
-               YXs[3] == r.YXs[3];
-    }
-    friend ostream& operator<<(ostream& os, const Rect& rect) {
-        return os << rect.YXs[0] << " " << rect.YXs[1] << " " << rect.YXs[2]
-                  << " " << rect.YXs[3];
     }
 };
 using Rects = vector<Rect>;
@@ -236,44 +258,82 @@ int calcRawScore(const Rects& ans) {
     for (auto& r : ans) sumW += r.getW();
     return int(round(scoreCoef * sumW));
 }
+int calcRawScore(const Rects& ans, const Rects& newlyAns) {
+    double sumW = initSumW;
+    for (auto& r : ans) sumW += r.getW();
+    for (auto& r : newlyAns) sumW += r.getW();
+    return int(round(scoreCoef * sumW));
+}
 
-constexpr int maxN = 61;
-using Bitset = bitset<maxN * maxN * dirLen>;
-using Grid = bitset<maxN * maxN>;  // bool[]の方が速い?
+struct StateInfo {
+    int stateIdx = -1;
+    int candIdx = -1;
+    int pattern = -1;
+    int ok_nums = 0;
+    int blocked = 0;
+    int numNewPoints = 0;
+    int _grid_hash = 0;
+    int _used_hash = 0;
+    float _temporaryScore = -INF;
+
+    StateInfo() {}
+    StateInfo(int stateIdx, int candIdx, int pattern, int ok_nums, int blocked,
+              int numNewPoints)
+        : stateIdx(stateIdx),
+          candIdx(candIdx),
+          pattern(pattern),
+          ok_nums(ok_nums),
+          blocked(blocked),
+          numNewPoints(numNewPoints) {}
+
+    inline int hash() const { return (_grid_hash << HASH_SIZE) + _used_hash; }
+
+    void setTemporaryScore(int loop_cnt, const Rects& ans,
+                           const Rects& newlyAns) {
+        if (loop_cnt < 20) {
+            _temporaryScore = ok_nums * (0.9 + 0.2 * myrand.random());
+        } else {
+            _temporaryScore = calcRawScore(ans, newlyAns);
+        }
+    }
+    int getTemporaryScore() const {
+        assert(_temporaryScore != -1);
+        return _temporaryScore;
+    }
+
+    friend ostream& operator<<(ostream& os, const StateInfo& info) {
+        return os << "[Idx: " << info.stateIdx << "-" << info.candIdx
+                  << ", pattern: " << info.pattern
+                  << ", ok_nums: " << info.ok_nums
+                  << ", blocked: " << info.blocked
+                  << ", numNewPoints: " << info.numNewPoints
+                  << ", _grid_hash: " << info._grid_hash
+                  << ", _used_hash: " << info._used_hash
+                  << ", _temporaryScore:" << info._temporaryScore << "]"
+                  << endl;
+    }
+};
 
 struct State {
     Bitset used;
     Grid grid;
     Rects cands;
     Rects ans;
-    int pattern;
+    StateInfo info;
 
-    int blocked = 0;
-    int numNewPoints = 0;
-
-    State() : pattern(-1) {}
-    State(const Rects& prevAns, int pattern, bool do_setup) : pattern(pattern) {
-        assert(do_setup);
-        ans = prevAns;
+    State() {}
+    State(int pattern, bool do_setup = true) : info(-1, -1, pattern, 0, 0, 0) {
+        assert(!do_setup ^ (0 <= pattern && pattern < PATTERN_NUM));
         used.reset();
         grid.reset();
-        for (auto& rect : prevAns) {
-            grid[to_idx2(rect.YXs[0])];
-            fillUsed(rect, true);
-        }
-        setup();
-    }
-    State(int pattern, bool do_setup = true) : pattern(pattern) {
-        assert(!do_setup ^ (0 <= pattern && pattern < 16));
-        used.reset();
-        grid.reset();
-        if (do_setup) {
-            setup();
-        }
+        if (do_setup) setup();
     }
 
     void setup() {
-        for (auto& p : POINTS) grid[to_idx2(p)] = 1;
+        for (auto& p : POINTS) {
+            grid[to_idx2(p)] = 1;
+            info._grid_hash ^= HASH.get2(p);
+        }
         for (int y = 0; y < N; y++) {
             for (int x = 0; x < N; x++) {
                 for (int dir = 0; dir < dirLen; dir++) {
@@ -293,8 +353,7 @@ struct State {
         int len = 0;
         while (0 < x && x < N - 1 && 0 < y && y < N - 1) {
             if (used[to_idx3(y, x, dir)]) return {-1, -1, -1};
-            y += DY[dir];
-            x += DX[dir];
+            y += DY[dir], x += DX[dir];
             len++;
             if (grid[to_idx2(y, x)]) return {y, x, len};
         }
@@ -306,22 +365,16 @@ struct State {
         int cnt = 0;
         while (0 < x && x < N - 1 && 0 < y && y < N - 1) {
             if (used[to_idx3(y, x, dir)]) return {-1, -1};
-            y += DY[dir];
-            x += DX[dir];
+            y += DY[dir], x += DX[dir];
             cnt++;
             if (grid[to_idx2(y, x)] || cnt == len) return {y, x};
         }
         return {-1, -1};
     }
 
-    // pair<bool, any> is_valid(int y, int x, int dir) const {
-    //     return {false, Rect()};
-    // }
-
     Rect getDoubleNext(int y, int x, int dir) const {
         assert(grid[to_idx2(y, x)]);
-        int dir1 = dir;
-        int dir2 = (dir + 2) % dirLen;
+        int dir1 = dir, dir2 = (dir + 2) % dirLen;
         auto [ny11, nx11, len1] = getNext(y, x, dir1);
         auto [ny12, nx12, len2] = getNext(y, x, dir2);
         if (ny11 == -1 || ny12 == -1) return Rect();
@@ -329,16 +382,15 @@ struct State {
         auto [ny22, nx22] = getNextWithLen(ny12, nx12, dir1, len1);
         if (ny21 != -1 && ny22 != -1 && ny21 == ny22 && nx21 == nx22 &&
             !grid[to_idx2(ny21, nx21)]) {
-            return Rect(ny21, nx21, ny12, nx12, y, x, ny11, nx11, -1);
+            return Rect(ny21, nx21, ny12, nx12, y, x, ny11, nx11, info.pattern);
         }
         return Rect();
     }
 
     Rect getTripleNext(int y, int x, int dir, bool rectDir) const {
         assert(grid[to_idx2(y, x)]);
-        int dir1 = dir;
-        int dir2 = (dir + (rectDir ? 2 : 6)) % dirLen;
-        int dir3 = (dir + (rectDir ? 2 : 6) * 2) % dirLen;
+        int dir1 = dir, dir2 = (dir + (rectDir ? 2 : 6)) % dirLen,
+            dir3 = (dir + (rectDir ? 2 : 6) * 2) % dirLen;
         auto [ny1, nx1, len1] = getNext(y, x, dir1);
         if (ny1 == -1) return Rect();
         auto [ny2, nx2, len2] = getNext(ny1, nx1, dir2);
@@ -348,28 +400,31 @@ struct State {
         auto [ny4, nx4] = getNextWithLen(y, x, dir2, len2);
         if (ny4 != -1 && nx4 != -1 && ny3 == ny4 && nx3 == nx4 &&
             !grid[to_idx2(ny3, nx3)]) {
-            if (rectDir) {
-                return Rect(ny3, nx3, y, x, ny1, nx1, ny2, nx2, -1);
-            } else {
-                return Rect(ny3, nx3, ny2, nx2, ny1, nx1, y, x, -1);
-            }
+            if (rectDir)
+                return Rect(ny3, nx3, y, x, ny1, nx1, ny2, nx2, info.pattern);
+            else
+                return Rect(ny3, nx3, ny2, nx2, ny1, nx1, y, x, info.pattern);
         }
         return Rect();
     }
 
-    void fillUsed(const Rect& rect, bool fillValue) {
+    void fillUsed(const Rect& rect) {
         for (auto i = 0; i < 4; i++) {
             int x = rect.YXs[i].x, y = rect.YXs[i].y;
             int tx = rect.YXs[(i + 1) % 4].x, ty = rect.YXs[(i + 1) % 4].y;
             int dir = getDir(ty - y, tx - x);
             while (x != tx || y != ty) {
-                blocked += (fillValue ? 1 : -1);
-                used[to_idx3(y, x, dir)] = fillValue;
+                info.blocked++;
+                assert(!used[to_idx3(y, x, dir)]);
+                used[to_idx3(y, x, dir)] = true;
+                info._used_hash ^= HASH.get3(y, x, dir);
                 x += DX[dir];
                 y += DY[dir];
-                used[to_idx3(y, x, dir ^ 4)] = fillValue;
+                assert(!used[to_idx3(y, x, dir ^ 4)]);
+                used[to_idx3(y, x, dir ^ 4)] = true;
+                info._used_hash ^= HASH.get3(y, x, dir ^ 4);
             }
-            blocked -= (fillValue ? 1 : -1);
+            info.blocked--;
         }
     }
 
@@ -405,7 +460,7 @@ struct State {
 
         cands.erase(remove_if(cands.begin(), cands.end(),
                               [&](const Rect& cand) {
-                                  if (cand.is_ok(pattern)) {
+                                  if (cand.is_ok) {
                                       if (cand.dir() % 2 == 0) {
                                           seen.insert(to_idx2(cand.YXs[0]));
                                           oks.push_back(cand);
@@ -424,19 +479,21 @@ struct State {
         while (!oks.empty()) {
             Rect rect = oks.back();
             oks.pop_back();
-            if (!grid[to_idx2(rect.YXs[0])] && rect.dir() % 2 == 1 &&
-                seen.find(to_idx2(rect.YXs[0])) != seen.end()) {
-                continue;
-            }
-            if (grid[to_idx2(rect.YXs[0])]) {
+            if (grid[to_idx2(rect.YXs[0])] ||
+                (rect.dir() % 2 == 1 &&
+                 seen.find(to_idx2(rect.YXs[0])) != seen.end())) {
                 continue;
             }
             int y = rect.YXs[0].y, x = rect.YXs[0].x;
-            numNewPoints++;
+            info.numNewPoints++;
+            info.ok_nums++;
             ans.push_back(rect);
-            grid[to_idx2(rect.YXs[0])] = true;
-            assert(int(grid.count()) == int(POINTS.size()) + numNewPoints);
-            fillUsed(rect, true);
+            int yx_idx = to_idx2(rect.YXs[0]);
+            assert(!grid[yx_idx]);
+            grid[yx_idx] = true;
+            info._grid_hash ^= HASH.hash[yx_idx];
+
+            fillUsed(rect);
 
             // 候補への追加
             for (int dir = 0; dir < 8; dir++) {
@@ -445,7 +502,7 @@ struct State {
                                           getTripleNext(y, x, dir, false)};
                 for (auto& new_rect : new_rects) {
                     if (new_rect.is_valid()) {
-                        if (new_rect.is_ok(pattern)) {
+                        if (new_rect.is_ok) {
                             if (new_rect.dir() % 2 == 0) {
                                 seen.insert(to_idx2(new_rect.YXs[0]));
                                 oks.push_back(new_rect);
@@ -462,15 +519,19 @@ struct State {
         eraseInvalid();
     }
 
-    void applyRect(int candIdx, int age) {
+    void applyRect(const int candIdx) {
         assert(0 <= candIdx && candIdx < int(cands.size()));
 
         // 更新
         int y = cands[candIdx].YXs[0].y, x = cands[candIdx].YXs[0].x;
-        numNewPoints++;
+        info.numNewPoints++;
         ans.push_back(cands[candIdx]);
-        grid[to_idx2(cands[candIdx].YXs[0])] = true;
-        fillUsed(cands[candIdx], true);
+        int yx_idx = to_idx2(cands[candIdx].YXs[0]);
+        assert(!grid[yx_idx]);
+        grid[yx_idx] = true;
+        info._grid_hash ^= HASH.hash[yx_idx];
+
+        fillUsed(cands[candIdx]);
 
         // 候補から削除
         cands.erase(cands.begin() + candIdx);
@@ -479,25 +540,88 @@ struct State {
         // 候補への追加
         for (int dir = 0; dir < 8; dir++) {
             Rect new_rect1 = getDoubleNext(y, x, dir);
-            new_rect1.age = age;
             if (new_rect1.is_valid()) cands.push_back(new_rect1);
             Rect new_rect2 = getTripleNext(y, x, dir, true);
-            new_rect2.age = age;
             if (new_rect2.is_valid()) cands.push_back(new_rect2);
             Rect new_rect3 = getTripleNext(y, x, dir, false);
-            new_rect3.age = age;
             if (new_rect3.is_valid()) cands.push_back(new_rect3);
         }
     }
 
-    void _setTemporaryScore(int tempScore) { _temporaryScore = tempScore; }
-    int _getTemporaryScore() const {
-        assert(_temporaryScore != -1);
-        return _temporaryScore;
-    }
+    StateInfo IfDoTheStep(const int loop_cnt, const int stateIdx,
+                          const int candIdx) {
+        assert(0 <= candIdx && candIdx < int(cands.size()) &&
+               info.stateIdx == -1 && info.candIdx == -1);
 
-   private:
-    int _temporaryScore = -1;
+        StateInfo z_info = info;
+        Bitset z_used = used;
+        Grid z_grid = grid;
+
+        info.stateIdx = stateIdx;
+        info.candIdx = candIdx;
+
+        deque<Rect> oks;          // ◇より□を優先する
+        unordered_set<int> seen;  // 恐らくこれはいらない気もするが...
+
+        // for (auto& cand : cands) {
+        //     if (cand.is_ok) {
+        //         assert(false);
+        //     }
+        // }
+
+        assert(!cands[candIdx].is_ok);
+        oks.push_back(cands[candIdx]);
+
+        Rects newlyAns;
+        while (!oks.empty()) {
+            Rect rect = oks.back();
+            oks.pop_back();
+            if (grid[to_idx2(rect.YXs[0])] ||
+                (rect.dir() % 2 == 1 &&
+                 seen.find(to_idx2(rect.YXs[0])) != seen.end())) {
+                continue;
+            }
+            int y = rect.YXs[0].y, x = rect.YXs[0].x;
+            info.numNewPoints++;
+            if (rect.is_ok) {
+                // 最初に適用するrectはokでない
+                info.ok_nums++;
+            }
+            newlyAns.push_back(rect);
+            int yx_idx = to_idx2(rect.YXs[0]);
+            assert(!grid[yx_idx]);
+            grid[yx_idx] = true;
+            info._grid_hash ^= HASH.hash[yx_idx];
+
+            fillUsed(rect);
+
+            for (int dir = 0; dir < 8; dir++) {
+                vector<Rect> new_rects = {getDoubleNext(y, x, dir),
+                                          getTripleNext(y, x, dir, true),
+                                          getTripleNext(y, x, dir, false)};
+                for (auto& new_rect : new_rects) {
+                    if (new_rect.is_valid()) {
+                        if (new_rect.is_ok) {
+                            if (new_rect.dir() % 2 == 0) {
+                                seen.insert(to_idx2(new_rect.YXs[0]));
+                                oks.push_back(new_rect);
+                            } else {
+                                oks.push_front(new_rect);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        info.setTemporaryScore(loop_cnt, ans, newlyAns);
+
+        swap(info, z_info);
+        swap(used, z_used);
+        swap(grid, z_grid);
+
+        return z_info;
+    }
 };
 
 void readInput() {
@@ -520,6 +644,7 @@ void readInput() {
     initSumW = 0;
     for (auto& p : POINTS) initSumW += wTable[p.y][p.x];
     scoreCoef = 1e6 * (double(N * N) / double(M)) / double(S);
+    HASH.setup();
 }
 
 void printAns(const Rects& ans) {
@@ -534,46 +659,53 @@ void printAns(const Rects& ans) {
 #endif
 }
 
-// Rects solveSub(int pattern, const Rects& prevAns = {}) {
-//     State state(prevAns, pattern, true);
-//     int loop_cnt = 0;
-//     while (!state.cands.empty()) {
-//         loop_cnt++;
-//         state.applyAllOkRect();
-//         break;
-//         // if (state.cands.empty()) break;
-//         // vector<long long> eval_values(state.cands.size(), 0);
-//         // for (int i = int(state.cands.size()) - 1; i >= 0; i--) {
-//         //     State new_state = state;
-//         //     new_state.applyRect(i, loop_cnt);
-//         //     for (auto& new_cand : new_state.cands) {
-//         //         eval_values[i] += new_cand.getW();
-//         //     }
-//         //     if (state.cands[i].len() <= 2) {
-//         //         eval_values[i] *= 2;
-//         //     }
-//         //     assert(!state.cands[i].is_ok(state.pattern));
-//         // }
-//         // for (auto& v : eval_values) v = v * v;
-//         // vector<int> Ps(eval_values.size());
-//         // iota(Ps.begin(), Ps.end(), 0);
-//         // int best_idx = myrand.choice(Ps, eval_values);
-//         // state.applyRect(best_idx, loop_cnt);
-//     }
-//     return state.ans;
-// }
+bool compare(const StateInfo& a, const StateInfo& b) {
+    return a.getTemporaryScore() < b.getTemporaryScore();
+};
+using Beam = priority_queue<StateInfo, vector<StateInfo>,
+                            function<bool(const StateInfo&, const StateInfo&)>>;
 
-size_t BEAM_WIDTH = 100000;
-void sortBeam(vector<State>& beam) {
-    for (auto& s : beam) {
-        s._setTemporaryScore(calcRawScore(s.ans) / sqrt(1 + s.blocked) *
-                             (0.5 + myrand.random()));
+void transferBeam(vector<State>& nowBeam, Beam& nextBeam, int loop_cnt) {
+    vector<State> newNowBeam;
+    set<int> seen;
+    vector<int> seen_patterns(PATTERN_NUM, 0);
+    while (!nextBeam.empty() && newNowBeam.size() < BEAM_WIDTH) {
+        const StateInfo selected = nextBeam.top();
+        nextBeam.pop();
+        if (seen.find(selected.hash()) != seen.end()) continue;
+        seen.insert(selected.hash());
+        seen_patterns[selected.pattern]++;
+        newNowBeam.push_back(nowBeam[selected.stateIdx]);
+        newNowBeam.back().applyRect(selected.candIdx);
+        newNowBeam.back().applyAllOkRect();
+        assert(newNowBeam.back().info.hash() == selected.hash());
     }
-    sort(beam.begin(), beam.end(), [&](const auto& a, const auto& b) {
-        return a._getTemporaryScore() > b._getTemporaryScore();
-    });
-    if (beam.size() > BEAM_WIDTH) {
-        beam.resize(BEAM_WIDTH);
+    if (loop_cnt < 20) {  // パラメータ
+        while (!nextBeam.empty()) {
+            const StateInfo selected = nextBeam.top();
+            nextBeam.pop();
+            assert(0 <= selected.pattern && selected.pattern < PATTERN_NUM);
+            if (seen_patterns[selected.pattern] <= 10) {
+                seen_patterns[selected.pattern]++;
+                newNowBeam.push_back(nowBeam[selected.stateIdx]);
+                newNowBeam.back().applyRect(selected.candIdx);
+                newNowBeam.back().applyAllOkRect();
+            }
+        }
+    }
+    debug(newNowBeam.size());
+    nowBeam.clear();
+    swap(nowBeam, newNowBeam);
+    // debug(seen_patterns);
+}
+
+void genTxtOfBeamContent(const vector<State>& beam) {
+    for (int i = 0; i < int(beam.size()); i += 10) {
+        ofstream writing_file;
+        writing_file.open("beamContent" + to_string(i) + ".txt", ios::out);
+        writing_file << to_string(beam[i].ans.size()) << endl;
+        for (auto& r : beam[i].ans) writing_file << r << endl;
+        writing_file.close();
     }
 }
 
@@ -581,68 +713,83 @@ pair<Rects, int> beamSearch() {
     Rects bestAns;
     int bestScore = -1;
 
-    State nowState(6);
-    nowState.applyAllOkRect();
-
-    vector<State> beam = {nowState};
+    vector<State> nowBeam;
+    for (int pattern = 0; pattern < PATTERN_NUM; pattern++) {
+        nowBeam.emplace_back(pattern);
+        nowBeam.back().applyAllOkRect();
+    }
 
     int loop_cnt = 0;
     while (timer.ms() < TL) {
         loop_cnt++;
         debug(loop_cnt);
-        if (beam.empty()) break;
-        vector<State> nextBeam;
-        for (auto& state : beam) {
-            vector<pair<int, int>> eval(state.cands.size());
+        debug(nowBeam.size());
+        if (nowBeam.empty()) break;
+        Beam nextBeam{compare};
+        for (int stateIdx = 0; stateIdx < int(nowBeam.size()); stateIdx++) {
+            auto& state = nowBeam[stateIdx];
             if (state.cands.empty()) {
                 if (chmax(bestScore, calcRawScore(state.ans))) {
-                    debug(bestScore);
-                    bestAns = state.ans;
-                    continue;
+                    swap(bestAns, state.ans);
                 }
+                continue;
             }
-            for (int i = 0; i < int(state.cands.size()); i++) {
-                eval[i] = {state.cands[i].getW() / state.cands[i].size(), i};
-            }
-            sort(eval.rbegin(), eval.rend());
-            for (int i = 0; i < min(3, int(eval.size())); i++) {
-                State newState = state;
-                newState.applyRect(eval[i].second, -1);
-                newState.applyAllOkRect();
-                nextBeam.push_back(newState);
+            if (timer.ms() > TL) break;
+
+            // debug(state.cands.size());
+            for (int candIdx = 0; candIdx < int(state.cands.size());
+                 candIdx++) {
+                StateInfo new_state_info =
+                    state.IfDoTheStep(loop_cnt, stateIdx, candIdx);
+                nextBeam.push(new_state_info);
             }
         }
-        sortBeam(nextBeam);
-        swap(beam, nextBeam);
+        transferBeam(nowBeam, nextBeam, loop_cnt);
     }
     debug(loop_cnt);
 
     return {bestAns, bestScore};
 }
 
+Rects solveSimple(int pattern) {
+    State state(pattern);
+    while (!state.cands.empty()) {
+        state.applyAllOkRect();
+        if (state.cands.empty()) break;
+        vector<int> eval_values(state.cands.size(), 0);
+        for (int i = int(state.cands.size()) - 1; i >= 0; i--) {
+            State new_state = state;
+            new_state.applyRect(i);
+            for (auto& new_cand : new_state.cands)
+                eval_values[i] += new_cand.getW();
+            if (state.cands[i].len() <= 2) eval_values[i] *= 2;
+        }
+        int best_idx =
+            distance(eval_values.begin(),
+                     max_element(eval_values.begin(), eval_values.end()));
+        state.applyRect(best_idx);
+    }
+    return state.ans;
+}
+
 void solve() {
     Rects bestAns;
     int bestScore = -1;
-    [[maybe_unused]] int bestPattern = -1;
 
-    tie(bestAns, bestScore) = beamSearch();
+    for (int pattern = 0; pattern < 4; pattern++) {
+        Rects ans = solveSimple(pattern);
+        if (chmax(bestScore, calcRawScore(ans))) {
+            swap(bestAns, ans);
+        }
+    }
 
-    // while (timer.ms() < TL) {
-    //     for (int pattern = 0; pattern < 8; pattern++) {
-    //         if (timer.ms() > TL) {
-    //             break;
-    //         }
-    //         debug(pattern);
-    //         Rects ans = solveSub(pattern);
-    //         if (chmax(bestScore, calcRawScore(ans))) {
-    //             bestPattern = pattern;
-    //             swap(bestAns, ans);
-    //         }
-    //     }
-    // }
+    auto [beamAns, beamScore] = beamSearch();
+
+    if (chmax(bestScore, beamScore)) {
+        swap(bestAns, beamAns);
+    }
 
     printAns(bestAns);
-    debug(bestPattern);
 }
 
 int main() {
