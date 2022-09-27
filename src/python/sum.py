@@ -1,4 +1,5 @@
 scores = dict()
+
 with open("src/bash/bestScores.log", mode="r") as f:
     while True:
         s = f.readline()
