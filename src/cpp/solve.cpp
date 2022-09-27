@@ -1,3 +1,15 @@
+/**
+ * @file solve.cpp
+ * @author hari64
+ * @brief AHC014 solver
+ * @version 0.1
+ * @date 2022-09-17
+ *
+ * @copyright Copyright (c) 2022
+ * @todo パラメータ調整
+ *       hashの調整 usedを無視する? seed2などではやや改善
+ */
+
 #include <bits/stdc++.h>  // clang-format off
 using namespace std;constexpr int INF=1001001001;constexpr long long INFll=1001001001001001001;namespace viewer{using s=string;template<class T>s f(T i){s S=i==INF||i==INFll?"inf":to_string(i);return s(max(0,3-int(S.size())),' ')+S;}
 template<class T>auto v(T&x,s&&e)->decltype(cerr<<x){return cerr<<x<<e;}void v(int x,s&&e){cerr<<f(x)<<e;}void v(long long x,s&&e){cerr<<f(x)<<e;}void v(float x,s&&e){cerr<<fixed<<setprecision(5)<<x<<e;}void v(double x,s&&e){cerr<<fixed<<setprecision(5)<<x<<e;}void v(long double x,s&&e){cerr<<fixed<<setprecision(5)<<x<<e;}
@@ -86,7 +98,7 @@ struct YX {
 };
 // clang-format on
 
-constexpr int TL = 4600;
+constexpr int TL = 5000;
 
 int N;
 int M;
@@ -106,7 +118,6 @@ using Grid = bitset<maxN * maxN>;
 
 int initSumW;
 double scoreCoef;
-size_t BEAM_WIDTH;
 
 inline int to_idx2(int y, int x) { return y * N + x; };
 inline int to_idx2(const YX& yx) { return to_idx2(yx.y, yx.x); };
@@ -212,6 +223,11 @@ struct Rect {
         }
     }
 
+    int _isNearBorder(const YX& point) const {
+        return abs(point.y - point.x) == 1 ||
+               abs(point.y + point.x - N + 1) == 1;
+    }
+
     bool _is_ok(const int pattern) const {
         assert(0 <= pattern && pattern < PATTERN_NUM);
         if (len() == 2) {
@@ -246,6 +262,38 @@ struct Rect {
                         return centerx % 2 == ((pattern >> 2) & 1);
                     }
                 }
+                // // ◇
+                // YX center(YXs[0].y + YXs[1].y + YXs[2].y + YXs[3].y,
+                //           YXs[0].x + YXs[1].x + YXs[2].x + YXs[3].x);
+                // assert(center.y % 4 == 0 && center.x % 4 == 0);
+                // center /= 4;
+                // int r = _regionPoint(center);
+                // if (r < 0) return r == -2;
+                // if (r == 0 && (((pattern >> 1) & 1) == ((pattern >> 2) & 1))
+                // &&
+                //     _isNearBorder(center)) {
+                //     return false;
+                // }
+                // if (r == 1 && (((pattern >> 2) & 1) == ((pattern >> 3) & 1))
+                // &&
+                //     _isNearBorder(center)) {
+                //     return false;
+                // }
+                // if (r == 2 && (((pattern >> 3) & 1) == ((pattern >> 4) & 1))
+                // &&
+                //     _isNearBorder(center)) {
+                //     return false;
+                // }
+                // if (r == 3 && (((pattern >> 4) & 1) == ((pattern >> 1) & 1))
+                // &&
+                //     _isNearBorder(center)) {
+                //     return false;
+                // }
+                // if (r == 0) return center.y % 2 == ((pattern >> 1) & 1);
+                // if (r == 1) return center.x % 2 == ((pattern >> 2) & 1);
+                // if (r == 2) return center.y % 2 == ((pattern >> 3) & 1);
+                // if (r == 3) return center.x % 2 == ((pattern >> 4) & 1);
+                // assert(false);
             }
         }
         return false;
@@ -265,9 +313,8 @@ int calcRawScore(const Rects& ans, const Rects& newlyAns) {
     return int(round(scoreCoef * sumW));
 }
 
-int MODE = 0;
 struct StateInfo {
-    int stateIdx = -1;
+    int prevStateIdx = -1;
     int candIdx = -1;
     int pattern = -1;
     int ok_nums = 0;
@@ -278,10 +325,9 @@ struct StateInfo {
     float _temporaryScore = -INF;
 
     StateInfo() {}
-    StateInfo(int stateIdx, int candIdx, int pattern, int ok_nums, int blocked,
+    StateInfo(int candIdx, int pattern, int ok_nums, int blocked,
               int numNewPoints)
-        : stateIdx(stateIdx),
-          candIdx(candIdx),
+        : candIdx(candIdx),
           pattern(pattern),
           ok_nums(ok_nums),
           blocked(blocked),
@@ -289,30 +335,22 @@ struct StateInfo {
 
     inline int hash() const { return (_grid_hash << HASH_SIZE) + _used_hash; }
 
-    void setTemporaryScore(int loop_cnt, const Rects& ans,
+    void setTemporaryScore(const int dep, const Rects& ans,
                            const Rects& newlyAns) {
-        if (loop_cnt < 20) {
-            if (MODE == 0) {
-                _temporaryScore = ok_nums * (0.9 + 0.2 * myrand.random());
-            } else if (MODE == 1) {
-                _temporaryScore = sqrt(sqrt(1 + ok_nums)) *
-                                  calcRawScore(ans, newlyAns) *
-                                  (0.9 + 0.2 * myrand.random());
-            } else {
-                assert(false);
-            }
+        if (dep < 20) {
+            // float score0 = powf(1 + ok_nums, 0.25) *
+            //                calcRawScore(ans, newlyAns) * 0.1 *
+            //                (0.9 + 0.2 * myrand.random());
+            float score1 = ok_nums * (0.9 + 0.2 * myrand.random());
+            _temporaryScore = score1;
         } else {
             _temporaryScore = calcRawScore(ans, newlyAns);
         }
     }
-    int getTemporaryScore() const {
-        assert(_temporaryScore != -1);
-        return _temporaryScore;
-    }
+    inline int getScore() const { return _temporaryScore; }
 
     friend ostream& operator<<(ostream& os, const StateInfo& info) {
-        return os << "[Idx: " << info.stateIdx << "-" << info.candIdx
-                  << ", pattern: " << info.pattern
+        return os << "[pattern: " << info.pattern
                   << ", ok_nums: " << info.ok_nums
                   << ", blocked: " << info.blocked
                   << ", numNewPoints: " << info.numNewPoints
@@ -329,9 +367,11 @@ struct State {
     Rects cands;
     Rects ans;
     StateInfo info;
+    int stateIdx;
 
     State() {}
-    State(int pattern, bool do_setup = true) : info(-1, -1, pattern, 0, 0, 0) {
+    State(int pattern, int stateIdx, bool do_setup = true)
+        : info(-1, pattern, 0, 0, 0), stateIdx(stateIdx) {
         assert(!do_setup ^ (0 <= pattern && pattern < PATTERN_NUM));
         used.reset();
         grid.reset();
@@ -557,30 +597,24 @@ struct State {
         }
     }
 
-    StateInfo IfDoTheStep(const int loop_cnt, const int stateIdx,
-                          const int candIdx) {
-        assert(0 <= candIdx && candIdx < int(cands.size()) &&
-               info.stateIdx == -1 && info.candIdx == -1);
+    // 実質const
+    StateInfo IfDoTheStep(const int dep, const int candIdx) {
+        assert(0 <= candIdx && candIdx < int(cands.size()));
 
         StateInfo z_info = info;
         Bitset z_used = used;
         Grid z_grid = grid;
 
-        info.stateIdx = stateIdx;
+        info.prevStateIdx = stateIdx;
         info.candIdx = candIdx;
 
         deque<Rect> oks;          // ◇より□を優先する
         unordered_set<int> seen;  // 恐らくこれはいらない気もするが...
 
-        // for (auto& cand : cands) {
-        //     if (cand.is_ok) {
-        //         assert(false);
-        //     }
-        // }
-
         assert(!cands[candIdx].is_ok);
         oks.push_back(cands[candIdx]);
 
+        int _check = 0;
         Rects newlyAns;
         while (!oks.empty()) {
             Rect rect = oks.back();
@@ -595,6 +629,8 @@ struct State {
             if (rect.is_ok) {
                 // 最初に適用するrectはokでない
                 info.ok_nums++;
+            } else {
+                _check++;
             }
             newlyAns.push_back(rect);
             int yx_idx = to_idx2(rect.YXs[0]);
@@ -622,8 +658,9 @@ struct State {
                 }
             }
         }
+        assert(_check == 1);
 
-        info.setTemporaryScore(loop_cnt, ans, newlyAns);
+        info.setTemporaryScore(dep, ans, newlyAns);
 
         swap(info, z_info);
         swap(used, z_used);
@@ -653,69 +690,26 @@ void readInput() {
     initSumW = 0;
     for (auto& p : POINTS) initSumW += wTable[p.y][p.x];
     scoreCoef = 1e6 * (double(N * N) / double(M)) / double(S);
-    if (N <= 41) {
-        BEAM_WIDTH = 800;
-    } else if (N <= 51) {
-        BEAM_WIDTH = 300;
-    } else {
-        BEAM_WIDTH = 200;
-    }
     HASH.setup();
 }
 
 void printAns(const Rects& ans) {
 #ifdef TEST
-    cout << calcRawScore(ans) << endl;
     cerr << ans.size() << endl;
     for (auto& r : ans) cerr << r << endl;
+    cout << calcRawScore(ans) << endl;
 #else
-    debug(calcRawScore(ans));
     cout << ans.size() << endl;
     for (auto& r : ans) cout << r << endl;
+    debug(calcRawScore(ans));
 #endif
 }
 
 bool compare(const StateInfo& a, const StateInfo& b) {
-    return a.getTemporaryScore() < b.getTemporaryScore();
+    return a.getScore() < b.getScore();
 };
-using Beam = priority_queue<StateInfo, vector<StateInfo>,
-                            function<bool(const StateInfo&, const StateInfo&)>>;
-
-void transferBeam(vector<State>& nowBeam, Beam& nextBeam, int loop_cnt) {
-    vector<State> newNowBeam;
-    set<int> seen;
-    vector<int> seen_patterns(PATTERN_NUM, 0);
-    int now = timer.ms();
-    if (now > TL) BEAM_WIDTH = 5;
-    while (!nextBeam.empty() && newNowBeam.size() < BEAM_WIDTH) {
-        const StateInfo selected = nextBeam.top();
-        nextBeam.pop();
-        if (seen.find(selected.hash()) != seen.end()) continue;
-        seen.insert(selected.hash());
-        seen_patterns[selected.pattern]++;
-        newNowBeam.push_back(nowBeam[selected.stateIdx]);
-        newNowBeam.back().applyRect(selected.candIdx);
-        newNowBeam.back().applyAllOkRect();
-        assert(newNowBeam.back().info.hash() == selected.hash());
-    }
-    if (now < TL && loop_cnt < 20) {  // パラメータ
-        while (!nextBeam.empty()) {
-            const StateInfo selected = nextBeam.top();
-            nextBeam.pop();
-            assert(0 <= selected.pattern && selected.pattern < PATTERN_NUM);
-            if (seen_patterns[selected.pattern] <= 10) {
-                seen_patterns[selected.pattern]++;
-                newNowBeam.push_back(nowBeam[selected.stateIdx]);
-                newNowBeam.back().applyRect(selected.candIdx);
-                newNowBeam.back().applyAllOkRect();
-            }
-        }
-    }
-    debug(newNowBeam.size());
-    nowBeam.clear();
-    swap(nowBeam, newNowBeam);
-    // debug(seen_patterns);
-}
+using PQ = priority_queue<StateInfo, vector<StateInfo>,
+                          function<bool(const StateInfo&, const StateInfo&)>>;
 
 void genTxtOfBeamContent(const vector<State>& beam) {
     for (int i = 0; i < int(beam.size()); i += 10) {
@@ -727,109 +721,107 @@ void genTxtOfBeamContent(const vector<State>& beam) {
     }
 }
 
-pair<Rects, int> beamSearch() {
+const int BEAM_TL = 4600;
+const int BEAM_DEPTH = 200;
+void beamSearch_subroutine(Rects& bestAns, int& bestScore, int& bestPattern,
+                           vector<PQ>& PQs, set<int>& hash_seen,
+                           vector<State>& store) {
+    int _loop_cnt = 0;
+    while (timer.ms() < BEAM_TL) {
+        _loop_cnt++;
+        for (int dep = 1; dep < BEAM_DEPTH; dep++) {
+            if (PQs[dep - 1].empty()) continue;
+            StateInfo info = PQs[dep - 1].top();
+            PQs[dep - 1].pop();
+            assert(hash_seen.find(info.hash()) != hash_seen.end());
+            assert(0 <= info.prevStateIdx &&
+                   info.prevStateIdx < int(store.size()));
+            store.push_back(store[info.prevStateIdx]);
+            assert(store.back().stateIdx == info.prevStateIdx);
+            store.back().stateIdx = int(store.size()) - 1;
+            assert(0 <= info.candIdx &&
+                   info.candIdx < int(store.back().cands.size()));
+            store.back().applyRect(info.candIdx);
+            store.back().applyAllOkRect();
+            if (store.back().cands.empty()) {
+                if (chmax(bestScore, calcRawScore(store.back().ans))) {
+                    swap(bestAns, store.back().ans);
+                    bestPattern = store.back().info.pattern;
+                }
+                store.pop_back();
+                continue;
+            }
+            for (int candIdx = 0; candIdx < int(store.back().cands.size());
+                 candIdx++) {
+                StateInfo new_state_info =
+                    store.back().IfDoTheStep(dep, candIdx);
+                assert(new_state_info.prevStateIdx == store.back().stateIdx);
+                assert(new_state_info.pattern == store.back().info.pattern);
+                if (hash_seen.find(new_state_info.hash()) != hash_seen.end()) {
+                    continue;
+                }
+                hash_seen.insert(new_state_info.hash());
+                PQs[dep].push(new_state_info);
+            }
+        }
+    }
+    assert(PQs.back().empty());
+    debug(_loop_cnt);
+    debug(timer.ms());
+}
+
+void beamSearch() {
     Rects bestAns;
     int bestScore = -1;
     [[maybe_unused]] int bestPattern = -1;
 
-    vector<State> nowBeam;
+    // 評価値を全て保存しておく為のオブジェクト
+    vector<PQ> PQs;
+    for (int _ = 0; _ < BEAM_DEPTH; _++) {
+        PQ pq{compare};
+        PQs.push_back(pq);
+    }
+    // hashを保存する 別々のMODEで同一のを保持する
+    set<int> hash_seen;
+    // 実体があるStateを保持しておく これのidxをStateInfo.prevIdxは持っておく
+    vector<State> store;
+
     for (int pattern = 0; pattern < PATTERN_NUM; pattern++) {
-        nowBeam.emplace_back(pattern);
-        nowBeam.back().applyAllOkRect();
-    }
-
-    int loop_cnt = 0;
-    while (!nowBeam.empty()) {
-        loop_cnt++;
-        debug(loop_cnt);
-        debug(nowBeam.size());
-        Beam nextBeam{compare};
-        for (int stateIdx = 0; stateIdx < int(nowBeam.size()); stateIdx++) {
-            auto& state = nowBeam[stateIdx];
-            if (state.cands.empty()) {
-                if (chmax(bestScore, calcRawScore(state.ans))) {
-                    swap(bestAns, state.ans);
-                    bestPattern = state.info.pattern;
-                }
-                continue;
-            }
-            for (int candIdx = 0; candIdx < int(state.cands.size());
-                 candIdx++) {
-                StateInfo new_state_info =
-                    state.IfDoTheStep(loop_cnt, stateIdx, candIdx);
-                nextBeam.push(new_state_info);
-            }
+        store.emplace_back(pattern, -1, true);
+        State& state = store.back();
+        state.applyAllOkRect();
+        state.stateIdx = int(store.size()) - 1;
+        hash_seen.insert(state.info.hash());
+        for (int candIdx = 0; candIdx < int(state.cands.size()); candIdx++) {
+            StateInfo new_state_info = state.IfDoTheStep(0, candIdx);
+            assert(new_state_info.prevStateIdx == state.stateIdx);
+            assert(new_state_info.pattern == state.info.pattern);
+            PQs[0].push(new_state_info);
+            hash_seen.insert(new_state_info.hash());
         }
-        transferBeam(nowBeam, nextBeam, loop_cnt);
     }
-    debug(loop_cnt);
-    debug(bestPattern);
-
-    return {bestAns, bestScore};
-}
-
-// Rects solveSimple(int pattern) {
-//     State state(pattern);
-//     state.applyAllOkRect();
-//     int loop_cnt = 0;
-//     while (!state.cands.empty()) {
-//         loop_cnt++;
-//         if (state.cands.empty()) break;
-//         int subBestScore = 0;
-//         int subBestCandIdx = -1;
-//         for (int candIdx = 0; candIdx < int(state.cands.size()); candIdx++) {
-//             StateInfo new_state_info = state.IfDoTheStep(loop_cnt, 0,
-//             candIdx); if (chmax(subBestScore,
-//             new_state_info.getTemporaryScore())) {
-//                 subBestCandIdx = candIdx;
-//             }
-//         }
-//         state.applyRect(subBestCandIdx);
-//         state.applyAllOkRect();
-//     }
-//     return state.ans;
-// }
-
-void solve() {
-    Rects bestAns;
-    int bestScore = -1;
-
-    // // 保険 使われない方が望ましい
-    // for (int pattern = 0; pattern < 8; pattern++) {
-    //     Rects ans = solveSimple(pattern);
-    //     if (chmax(bestScore, calcRawScore(ans))) {
-    //         swap(bestAns, ans);
-    //     }
-    // }
-
-    MODE = 0;
-    auto [beamAns1, beamScore1] = beamSearch();
-    if (chmax(bestScore, beamScore1)) {
-        swap(bestAns, beamAns1);
-    }
-
-    MODE = 1;
-    auto [beamAns2, beamScore2] = beamSearch();
-    if (chmax(bestScore, beamScore2)) {
-        swap(bestAns, beamAns2);
-    }
+    beamSearch_subroutine(bestAns, bestScore, bestPattern, PQs, hash_seen,
+                          store);
 
     printAns(bestAns);
+
+    assert(timer.ms() < TL);
+
+#ifdef ONLINE_JUDGE
+    quick_exit(0);
+#endif
 }
+
+void solve() { beamSearch(); }
 
 int main() {
     cin.tie(0);
     ios::sync_with_stdio(false);
 
     readInput();
-
     timer.start();
     solve();
     timer.stop();
-
-#ifdef hari64
-    assert(timer.ms() < TL);
-#endif
 
     return 0;
 }
