@@ -98,7 +98,7 @@ struct YX {
 };
 // clang-format on
 
-constexpr int TL = 4600;
+constexpr int BEAM_TL = 4000;
 constexpr int TRUE_TL = 5000;
 
 int N;
@@ -337,11 +337,11 @@ void readInput() {
     for (auto& p : POINTS) initSumW += wTable[p.y][p.x];
     scoreCoef = 1e6 * (double(N * N) / double(M)) / double(S);
     if (N <= 41) {
-        BEAM_WIDTH = 400;
-    } else if (N <= 51) {
         BEAM_WIDTH = 300;
-    } else {
+    } else if (N <= 51) {
         BEAM_WIDTH = 200;
+    } else {
+        BEAM_WIDTH = 100;
     }
     HASH.setup();
 }
@@ -391,7 +391,10 @@ struct StateInfo {
             if (MODE == 0) {
                 _temporaryScore = ok_nums * (0.9 + 0.2 * myrand.random());
             } else if (MODE == 1) {
-                _temporaryScore = sqrt(sqrt(1 + ok_nums)) *
+                // _temporaryScore = (1.0 / sqrt(1 + numNewPoints)) *
+                //                   calcRawScore(ans, newlyAns, 0) *
+                //                   (0.9 + 0.2 * myrand.random());
+                _temporaryScore = powf(1 + ok_nums, 0.25) *
                                   calcRawScore(ans, newlyAns) *
                                   (0.9 + 0.2 * myrand.random());
             } else {
@@ -735,7 +738,6 @@ bool compare(const StateInfo& a, const StateInfo& b) {
 using PQ = priority_queue<StateInfo, vector<StateInfo>,
                           function<bool(const StateInfo&, const StateInfo&)>>;
 
-int BEAM_TL = 4000;
 void transferBeam(vector<State>& nowBeam, PQ& nextBeam, int loop_cnt) {
     vector<State> newNowBeam;
     vector<int> seen_patterns(PATTERN_NUM, 0);

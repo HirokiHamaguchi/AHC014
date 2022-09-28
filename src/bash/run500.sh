@@ -8,7 +8,7 @@ RESET="\033[0m"
 FOLDER="./src/bash/"
 F_OUT="${FOLDER}out500.log"
 
-seedNum=499 #500-1
+seedNum=99 #500-1
 
 echo -n >| $F_OUT
 
