@@ -98,7 +98,7 @@ struct YX {
 };
 // clang-format on
 
-constexpr int TL = 5000;
+constexpr int TL = 50000;
 
 int N;
 int M;
@@ -315,7 +315,8 @@ int calcRawScore(const Rects& ans, const Rects& newlyAns,
     return int(round(scoreCoef * sumW));
 }
 
-int MODE = 0;
+int MODE = -1;
+int BOUNDARY_LOOPCNT = 15;
 struct StateInfo {
     int stateIdx = -1;
     int candIdx = -1;
@@ -341,13 +342,17 @@ struct StateInfo {
 
     void setTemporaryScore(int loop_cnt, const Rects& ans,
                            const Rects& newlyAns) {
-        if (loop_cnt < 10) {
-            if (MODE == 1) {
-                _temporaryScore = ok_nums * (0.9 + 0.2 * myrand.random());
-            } else if (MODE == 0) {
+        if (loop_cnt < BOUNDARY_LOOPCNT) {
+            if (MODE == 0) {
                 _temporaryScore = (1.0 / sqrt(1 + numNewPoints)) *
                                   calcRawScore(ans, newlyAns, 0) *
                                   (0.9 + 0.2 * myrand.random());
+            } else if (MODE == 1) {
+                _temporaryScore = sqrt(sqrt(1 + ok_nums)) *
+                                  calcRawScore(ans, newlyAns, 0) *
+                                  (0.9 + 0.2 * myrand.random());
+            } else if (MODE == 2) {
+                _temporaryScore = ok_nums * (0.9 + 0.2 * myrand.random());
             } else {
                 assert(false);
             }
@@ -731,41 +736,64 @@ bool compare(const StateInfo& a, const StateInfo& b) {
 using PQ = priority_queue<StateInfo, vector<StateInfo>,
                           function<bool(const StateInfo&, const StateInfo&)>>;
 
-int BEAM_TL = 4000;
-void transferBeam(vector<State>& nowBeam, PQ& nextBeam, int loop_cnt) {
-    vector<State> newNowBeam;
-    set<int> seen;
-    vector<int> seen_patterns(PATTERN_NUM, 0);
-    int now = timer.ms();
-    if (now > BEAM_TL) BEAM_WIDTH /= 2;
-    while (!nextBeam.empty() && newNowBeam.size() < BEAM_WIDTH) {
-        const StateInfo selected = nextBeam.top();
-        nextBeam.pop();
-        if (seen.find(selected.hash()) != seen.end()) continue;
-        seen.insert(selected.hash());
-        seen_patterns[selected.pattern]++;
-        newNowBeam.push_back(nowBeam[selected.stateIdx]);
-        newNowBeam.back().applyRect(selected.candIdx);
-        newNowBeam.back().applyAllOkRect();
-        assert(newNowBeam.back().info.hash() == selected.hash());
-    }
-    if (now < BEAM_TL && loop_cnt < 20) {  // パラメータ
-        while (!nextBeam.empty()) {
-            const StateInfo selected = nextBeam.top();
-            nextBeam.pop();
-            assert(0 <= selected.pattern && selected.pattern < PATTERN_NUM);
-            if (seen_patterns[selected.pattern] <= 10) {
-                seen_patterns[selected.pattern]++;
-                newNowBeam.push_back(nowBeam[selected.stateIdx]);
-                newNowBeam.back().applyRect(selected.candIdx);
-                newNowBeam.back().applyAllOkRect();
+bool IS_FIRST_TL_OVER = true;
+constexpr int BEAM_TL = TL - 1500;
+constexpr int BEAM_TL2 = TL - 1000;
+constexpr int PATTERN_LOOPCNT = 10;
+
+vector<size_t> make_widths(vector<PQ>& nextBeams) {
+    assert(int(nextBeams.size()) == 1 || int(nextBeams.size()) == PATTERN_NUM);
+    if (int(nextBeams.size()) == 1) {
+        return {BEAM_WIDTH};
+    } else {
+        vector<int> weight(PATTERN_NUM, 0);
+        for (int pattern = 0; pattern < PATTERN_NUM; pattern++) {
+            if (nextBeams[pattern].empty()) continue;
+            weight[pattern] = nextBeams[pattern].top().getTemporaryScore();
+            assert(weight[pattern] > 0);
+        }
+        long long sum = accumulate(weight.begin(), weight.end(), 0ll);
+        vector<size_t> ret(PATTERN_NUM, 0);
+        for (int pattern = 0; pattern < PATTERN_NUM; pattern++) {
+            ret[pattern] =
+                size_t(max(0.0, double(BEAM_WIDTH) * weight[pattern] / sum));
+            if (pattern > 0) {
+                ret[pattern] += ret[pattern - 1];
             }
         }
+        return ret;
     }
-    debug(newNowBeam.size());
+}
+
+void transferBeam(vector<State>& nowBeam, vector<PQ>& nextBeams, int loop_cnt) {
+    vector<State> newNowBeam;
+    set<int> seen;
+    int now = timer.ms();
+    if (IS_FIRST_TL_OVER && now > BEAM_TL) {
+        IS_FIRST_TL_OVER = false;
+        BEAM_WIDTH /= 3;
+    }
+    if (now > BEAM_TL2) {
+        BEAM_WIDTH = 30;
+    }
+    assert(loop_cnt < PATTERN_LOOPCNT || int(nextBeams.size()) == 1);
+    vector<size_t> widths = make_widths(nextBeams);
+    for (int pattern = 0;
+         pattern < (loop_cnt < PATTERN_LOOPCNT ? PATTERN_NUM : 1); pattern++) {
+        auto& nextBeam = nextBeams[pattern];
+        while (!nextBeam.empty() && newNowBeam.size() < widths[pattern]) {
+            const StateInfo selected = nextBeam.top();
+            nextBeam.pop();
+            if (seen.find(selected.hash()) != seen.end()) continue;
+            seen.insert(selected.hash());
+            newNowBeam.push_back(nowBeam[selected.stateIdx]);
+            newNowBeam.back().applyRect(selected.candIdx);
+            newNowBeam.back().applyAllOkRect();
+            assert(newNowBeam.back().info.hash() == selected.hash());
+        }
+    }
     nowBeam.clear();
     swap(nowBeam, newNowBeam);
-    // debug(seen_patterns);
 }
 
 void genTxtOfBeamContent(const vector<State>& beam) {
@@ -794,7 +822,8 @@ pair<Rects, int> beamSearch() {
         loop_cnt++;
         debug(loop_cnt);
         debug(nowBeam.size());
-        PQ nextBeam{compare};
+        vector<PQ> nextBeams(loop_cnt < PATTERN_LOOPCNT ? PATTERN_NUM : 1,
+                             PQ{compare});
         for (int stateIdx = 0; stateIdx < int(nowBeam.size()); stateIdx++) {
             auto& state = nowBeam[stateIdx];
             if (state.cands.empty()) {
@@ -808,10 +837,12 @@ pair<Rects, int> beamSearch() {
                  candIdx++) {
                 StateInfo new_state_info =
                     state.IfDoTheStep(loop_cnt, stateIdx, candIdx);
-                nextBeam.push(new_state_info);
+                nextBeams[loop_cnt < PATTERN_LOOPCNT ? new_state_info.pattern
+                                                     : 0]
+                    .push(new_state_info);
             }
         }
-        transferBeam(nowBeam, nextBeam, loop_cnt);
+        transferBeam(nowBeam, nextBeams, loop_cnt);
     }
     debug(loop_cnt);
     debug(bestPattern);
@@ -854,24 +885,32 @@ void solve() {
     // }
 
     MODE = 0;
+    auto [beamAns0, beamScore0] = beamSearch();
+    if (chmax(bestScore, beamScore0)) {
+        swap(bestAns, beamAns0);
+    }
+
+    MODE = 1;
     auto [beamAns1, beamScore1] = beamSearch();
     if (chmax(bestScore, beamScore1)) {
         swap(bestAns, beamAns1);
     }
 
-    MODE = 1;
-    auto [beamAns2, beamScore2] = beamSearch();
-    if (chmax(bestScore, beamScore2)) {
-        swap(bestAns, beamAns2);
+    if (timer.ms() < BEAM_TL2) {
+        MODE = 2;
+        auto [beamAns2, beamScore2] = beamSearch();
+        if (chmax(bestScore, beamScore2)) {
+            swap(bestAns, beamAns2);
+        }
     }
 
     printAns(bestAns);
 
     assert(timer.ms() < TL);
 
-    // #ifdef ONLINE_JUDGE
-    //     quick_exit(0);
-    // #endif
+#ifdef ONLINE_JUDGE
+    quick_exit(0);
+#endif
 }
 
 int main() {
@@ -883,10 +922,6 @@ int main() {
     timer.start();
     solve();
     timer.stop();
-
-#ifdef hari64
-    assert(timer.ms() < TL);
-#endif
 
     return 0;
 }
