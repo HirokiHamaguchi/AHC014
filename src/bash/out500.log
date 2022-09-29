@@ -1,39 +1,201 @@
 seed:0000
- |score:2176381
+ |score:2239135
 seed:0001
- |score:1884684
+ |score:1876748
 seed:0002
- |score:760855
+ |score:776518
 seed:0003
- |score:1771348
+ |score:1845024
 seed:0004
- |score:841776
+ |score:939301
 seed:0005
- |score:1938905
+ |score:1950863
 seed:0006
- |score:876779
+ |score:866381
 seed:0007
- |score:1119588
+ |score:969817
 seed:0008
- |score:768828
+ |score:845925
 seed:0009
- |score:1813056
+ |score:2003243
 seed:0010
- |score:879439
+ |score:905566
 seed:0011
- |score:1788650
+ |score:1795198
 seed:0012
- |score:1505373
+ |score:1137139
 seed:0013
- |score:618660
+ |score:687472
 seed:0014
- |score:763615
+ |score:747290
 seed:0015
- |score:1162495
+ |score:1199306
 seed:0016
- |score:859846
+ |score:959728
 seed:0017
- |score:1143140
+ |score:1132308
 seed:0018
- |score:2011852
+ |score:2013728
 seed:0019
+ |score:1698105
+seed:0020
+ |score:1312566
+seed:0021
+ |score:735655
+seed:0022
+ |score:1012758
+seed:0023
+ |score:806349
+seed:0024
+ |score:720300
+seed:0025
+ |score:1790122
+seed:0026
+ |score:833057
+seed:0027
+ |score:1839415
+seed:0028
+ |score:1748954
+seed:0029
+ |score:1809574
+seed:0030
+ |score:1633608
+seed:0031
+ |score:1941816
+seed:0032
+ |score:1730109
+seed:0033
+ |score:916431
+seed:0034
+ |score:1959880
+seed:0035
+ |score:1406155
+seed:0036
+ |score:781832
+seed:0037
+ |score:851963
+seed:0038
+ |score:1377966
+seed:0039
+ |score:817347
+seed:0040
+ |score:1250095
+seed:0041
+ |score:1068773
+seed:0042
+ |score:1472137
+seed:0043
+ |score:1047982
+seed:0044
+ |score:1978815
+seed:0045
+ |score:1876629
+seed:0046
+ |score:1708892
+seed:0047
+ |score:924400
+seed:0048
+ |score:787702
+seed:0049
+ |score:787409
+seed:0050
+ |score:761421
+seed:0051
+ |score:1181988
+seed:0052
+ |score:1030737
+seed:0053
+ |score:1850883
+seed:0054
+ |score:1136354
+seed:0055
+ |score:1102735
+seed:0056
+ |score:2201891
+seed:0057
+ |score:1852458
+seed:0058
+ |score:743834
+seed:0059
+ |score:1314268
+seed:0060
+ |score:1114851
+seed:0061
+ |score:1050162
+seed:0062
+ |score:1883169
+seed:0063
+ |score:2054843
+seed:0064
+ |score:1024845
+seed:0065
+ |score:1166503
+seed:0066
+ |score:755216
+seed:0067
+ |score:886737
+seed:0068
+ |score:719570
+seed:0069
+ |score:787956
+seed:0070
+ |score:999658
+seed:0071
+ |score:793875
+seed:0072
+ |score:2018967
+seed:0073
+ |score:1767825
+seed:0074
+ |score:872492
+seed:0075
+ |score:726275
+seed:0076
+ |score:1629886
+seed:0077
+ |score:1200225
+seed:0078
+ |score:794408
+seed:0079
+ |score:1546494
+seed:0080
+ |score:1084585
+seed:0081
+ |score:836490
+seed:0082
+ |score:2283277
+seed:0083
+ |score:1484309
+seed:0084
+ |score:1872395
+seed:0085
+ |score:2401041
+seed:0086
+ |score:990692
+seed:0087
+ |score:1019783
+seed:0088
+ |score:2116475
+seed:0089
+ |score:985293
+seed:0090
+ |score:948970
+seed:0091
+ |score:738876
+seed:0092
+ |score:794243
+seed:0093
+ |score:1219827
+seed:0094
+ |score:2052459
+seed:0095
+ |score:2036794
+seed:0096
+ |score:785793
+seed:0097
+ |score:860689
+seed:0098
+ |score:995698
+seed:0099
+ |score:1948137
+avg: 129943838

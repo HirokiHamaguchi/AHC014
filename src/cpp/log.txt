@@ -1,0 +1,302 @@
+now compiling...
+seed:0000
+ | time:0m4.999s
+ |score:2239135
+seed:0001
+ | time:0m5.036s
+ |score:1876748
+seed:0002
+ | time:0m4.908s
+ |score:776518
+seed:0003
+ | time:0m4.956s
+ |score:1845024
+seed:0004
+ | time:0m4.973s
+ |score:939301
+seed:0005
+ | time:0m4.928s
+ |score:1950863
+seed:0006
+ | time:0m4.912s
+ |score:866381
+seed:0007
+ | time:0m4.971s
+ |score:969817
+seed:0008
+ | time:0m5.452s
+ |score:845925
+seed:0009
+ | time:0m4.910s
+ |score:2003243
+seed:0010
+ | time:0m4.913s
+ |score:905566
+seed:0011
+ | time:0m4.934s
+ |score:1795198
+seed:0012
+ | time:0m5.203s
+ |score:1137139
+seed:0013
+ | time:0m5.235s
+ |score:687472
+seed:0014
+ | time:0m5.033s
+ |score:747290
+seed:0015
+ | time:0m5.048s
+ |score:1199306
+seed:0016
+ | time:0m4.957s
+ |score:959728
+seed:0017
+ | time:0m4.908s
+ |score:1132308
+seed:0018
+ | time:0m5.136s
+ |score:2013728
+seed:0019
+ | time:0m4.963s
+ |score:1698105
+seed:0020
+ | time:0m4.909s
+ |score:1312566
+seed:0021
+ | time:0m4.995s
+ |score:735655
+seed:0022
+ | time:0m5.204s
+ |score:1012758
+seed:0023
+ | time:0m5.110s
+ |score:806349
+seed:0024
+ | time:0m5.152s
+ |score:720300
+seed:0025
+ | time:0m4.913s
+ |score:1790122
+seed:0026
+ | time:0m4.957s
+ |score:833057
+seed:0027
+ | time:0m5.076s
+ |score:1839415
+seed:0028
+ | time:0m4.936s
+ |score:1748954
+seed:0029
+ | time:0m5.104s
+ |score:1809574
+seed:0030
+ | time:0m4.954s
+ |score:1633608
+seed:0031
+ | time:0m4.910s
+ |score:1941816
+seed:0032
+ | time:0m4.910s
+ |score:1730109
+seed:0033
+ | time:0m5.173s
+ |score:916431
+seed:0034
+ | time:0m4.949s
+ |score:1959880
+seed:0035
+ | time:0m5.177s
+ |score:1406155
+seed:0036
+ | time:0m5.041s
+ |score:781832
+seed:0037
+ | time:0m4.909s
+ |score:851963
+seed:0038
+ | time:0m4.964s
+ |score:1377966
+seed:0039
+ | time:0m5.130s
+ |score:817347
+seed:0040
+ | time:0m5.176s
+ |score:1250095
+seed:0041
+ | time:0m4.909s
+ |score:1068773
+seed:0042
+ | time:0m4.909s
+ |score:1472137
+seed:0043
+ | time:0m4.906s
+ |score:1047982
+seed:0044
+ | time:0m4.917s
+ |score:1978815
+seed:0045
+ | time:0m4.949s
+ |score:1876629
+seed:0046
+ | time:0m5.065s
+ |score:1708892
+seed:0047
+ | time:0m4.918s
+ |score:924400
+seed:0048
+ | time:0m5.173s
+ |score:787702
+seed:0049
+ | time:0m4.909s
+ |score:787409
+seed:0050
+ | time:0m4.908s
+ |score:761421
+seed:0051
+ | time:0m4.909s
+ |score:1181988
+seed:0052
+ | time:0m5.243s
+ |score:1030737
+seed:0053
+ | time:0m4.953s
+ |score:1850883
+seed:0054
+ | time:0m4.907s
+ |score:1136354
+seed:0055
+ | time:0m4.951s
+ |score:1102735
+seed:0056
+ | time:0m4.909s
+ |score:2201891
+seed:0057
+ | time:0m5.071s
+ |score:1852458
+seed:0058
+ | time:0m5.166s
+ |score:743834
+seed:0059
+ | time:0m4.909s
+ |score:1314268
+seed:0060
+ | time:0m4.906s
+ |score:1114851
+seed:0061
+ | time:0m4.909s
+ |score:1050162
+seed:0062
+ | time:0m5.094s
+ |score:1883169
+seed:0063
+ | time:0m4.946s
+ |score:2054843
+seed:0064
+ | time:0m5.118s
+ |score:1024845
+seed:0065
+ | time:0m4.908s
+ |score:1166503
+seed:0066
+ | time:0m4.906s
+ |score:755216
+seed:0067
+ | time:0m5.224s
+ |score:886737
+seed:0068
+ | time:0m5.078s
+ |score:719570
+seed:0069
+ | time:0m4.934s
+ |score:787956
+seed:0070
+ | time:0m4.917s
+ |score:999658
+seed:0071
+ | time:0m4.933s
+ |score:793875
+seed:0072
+ | time:0m5.133s
+ |score:2018967
+seed:0073
+ | time:0m5.051s
+ |score:1767825
+seed:0074
+ | time:0m5.106s
+ |score:872492
+seed:0075
+ | time:0m5.164s
+ |score:726275
+seed:0076
+ | time:0m4.911s
+ |score:1629886
+seed:0077
+ | time:0m4.929s
+ |score:1200225
+seed:0078
+ | time:0m5.151s
+ |score:794408
+seed:0079
+ | time:0m4.911s
+ |score:1546494
+seed:0080
+ | time:0m5.015s
+ |score:1084585
+seed:0081
+ | time:0m4.928s
+ |score:836490
+seed:0082
+ | time:0m4.965s
+ |score:2283277
+seed:0083
+ | time:0m4.983s
+ |score:1484309
+seed:0084
+ | time:0m4.990s
+ |score:1872395
+seed:0085
+ | time:0m4.932s
+ |score:2401041
+seed:0086
+ | time:0m4.907s
+ |score:990692
+seed:0087
+ | time:0m5.023s
+ |score:1019783
+seed:0088
+ | time:0m5.042s
+ |score:2116475
+seed:0089
+ | time:0m4.912s
+ |score:985293
+seed:0090
+ | time:0m4.907s
+ |score:948970
+seed:0091
+ | time:0m4.908s
+ |score:738876
+seed:0092
+ | time:0m4.967s
+ |score:794243
+seed:0093
+ | time:0m4.909s
+ |score:1219827
+seed:0094
+ | time:0m5.039s
+ |score:2052459
+seed:0095
+ | time:0m4.945s
+ |score:2036794
+seed:0096
+ | time:0m4.912s
+ |score:785793
+seed:0097
+ | time:0m4.914s
+ |score:860689
+seed:0098
+ | time:0m5.024s
+ |score:995698
+seed:0099
+ | time:0m5.092s
+ |score:1948137
+avg: 129943838
