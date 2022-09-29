@@ -98,6 +98,8 @@ struct YX {
 };
 // clang-format on
 
+constexpr int TL = 4600;
+
 int N;
 int M;
 vector<YX> POINTS;
@@ -248,10 +250,6 @@ struct Rect {
                 assert(centerx % 4 == 0 && centery % 4 == 0);
                 centerx /= 4;
                 centery /= 4;
-                // if (N / 4 + 1 < centerx && centerx < 3 * N / 4 - 1 &&
-                //     N / 4 + 1 < centery && centery < 3 * N / 4 - 1) {
-                //     return false;
-                // }
                 if ((pattern >> 3) & 1) {
                     // (pattern >> 1) & 1は使用しない
                     int r = _regionPoint(YX(centery, centerx));
@@ -378,9 +376,6 @@ void printAns(const Rects& ans) {
 
 int MODE = -1;
 struct StateInfo {
-    int prevStateIdx = -1;    // chokudaiSearch
-    bool doApplyAll = false;  // chokudaiSearch
-
     int stateIdx = -1;
     int candIdx = -1;
     int pattern = -1;
@@ -408,11 +403,6 @@ struct StateInfo {
 
     void setTemporaryScore(int loop_cnt, const Rects& ans,
                            const Rects& newlyAns) {
-        if (MODE == 100) {
-            _temporaryScore = calcRawScore(ans, newlyAns);
-            //* (0.9 + 0.2 * myrand.random());
-            return;
-        }
         if (loop_cnt < 20) {
             if (MODE == 0) {
                 _temporaryScore = ok_nums * (0.9 + 0.2 * myrand.random());
@@ -449,7 +439,6 @@ struct StateInfo {
 };
 
 struct State {
-    int stateIdx = -1;  // chokudaiSearch
     Bitset used;
     Grid grid;
     Rects cands;
@@ -728,11 +717,11 @@ struct State {
         deque<Rect> oks;          // ◇より□を優先する
         unordered_set<int> seen;  // 恐らくこれはいらない気もするが...
 
-        for (auto& cand : cands) {
-            if (cand.is_ok) {
-                assert(false);
-            }
-        }
+        // for (auto& cand : cands) {
+        //     if (cand.is_ok) {
+        //         assert(false);
+        //     }
+        // }
 
         assert(!cands[candIdx].is_ok);
         oks.push_back(cands[candIdx]);
@@ -787,85 +776,6 @@ struct State {
 
         return z_info;
     }
-
-    // 実質const
-    pair<StateInfo, StateInfo> IfDoTheStep2(const int dep, const int candIdx) {
-        assert(0 <= candIdx && candIdx < int(cands.size()));
-
-        StateInfo ret_info;
-        StateInfo z_info = info;
-        Bitset z_used = used;
-        Grid z_grid = grid;
-
-        info.prevStateIdx = stateIdx;
-        info.candIdx = candIdx;
-
-        deque<Rect> oks;          // ◇より□を優先する
-        unordered_set<int> seen;  // 恐らくこれはいらない気もするが...
-
-        // assert(!cands[candIdx].is_ok);
-        oks.push_back(cands[candIdx]);
-
-        Rects newlyAns;
-        bool is_first = true;
-        while (!oks.empty()) {
-            Rect rect = oks.back();
-            oks.pop_back();
-            if (grid[to_idx2(rect.YXs[0])] ||
-                (rect.dir() % 2 == 1 &&
-                 seen.find(to_idx2(rect.YXs[0])) != seen.end())) {
-                continue;
-            }
-            int y = rect.YXs[0].y, x = rect.YXs[0].x;
-            info.numNewPoints++;
-            if (rect.is_ok) {
-                // 最初に適用するrectはokでない
-                info.ok_nums++;
-            } else {
-                assert(is_first);
-            }
-            newlyAns.push_back(rect);
-            int yx_idx = to_idx2(rect.YXs[0]);
-            assert(!grid[yx_idx]);
-            grid[yx_idx] = true;
-            info._grid_hash ^= HASH.hash[yx_idx];
-
-            fillUsed(rect);
-
-            for (int dir = 0; dir < 8; dir++) {
-                vector<Rect> new_rects = {getDoubleNext(y, x, dir),
-                                          getTripleNext(y, x, dir, true),
-                                          getTripleNext(y, x, dir, false)};
-                for (auto& new_rect : new_rects) {
-                    if (new_rect.is_valid()) {
-                        if (new_rect.is_ok) {
-                            if (new_rect.dir() % 2 == 0) {
-                                seen.insert(to_idx2(new_rect.YXs[0]));
-                                oks.push_back(new_rect);
-                            } else {
-                                oks.push_front(new_rect);
-                            }
-                        }
-                    }
-                }
-            }
-            if (is_first) {
-                is_first = false;
-                ret_info = info;
-                ret_info.setTemporaryScore(dep, ans, newlyAns);
-                ret_info.doApplyAll = false;
-            }
-        }
-        assert(info.numNewPoints == int(ans.size() + newlyAns.size()));
-        info.setTemporaryScore(dep, ans, newlyAns);
-        info.doApplyAll = true;
-
-        swap(info, z_info);
-        swap(used, z_used);
-        swap(grid, z_grid);
-
-        return {ret_info, z_info};
-    }
 };
 
 bool compare(const StateInfo& a, const StateInfo& b) {
@@ -902,9 +812,9 @@ void transferBeam(vector<State>& nowBeam, PQ& nextBeam, int loop_cnt) {
         newNowBeam.push_back(nowBeam[selected.stateIdx]);
         newNowBeam.back().applyRect(selected.candIdx);
         newNowBeam.back().applyAllOkRect();
-        if (loop_cnt == 10 && newNowBeam.size() % 10 == 0) {
-            genTxtOfBeamContent(newNowBeam.back());
-        }
+        // if (loop_cnt == 10 && newNowBeam.size() % 10 == 0) {
+        //     genTxtOfBeamContent(newNowBeam.back());
+        // }
         assert(newNowBeam.back().info.hash() == selected.hash());
     }
     // #ifdef hari64
@@ -980,170 +890,26 @@ void beamSearch(unordered_set<int>& hash_seen_for_latter_part, State& bestState,
     debug(hash_seen_for_latter_part.size());
 }
 
-// const int CHOKUDAI_TL = 4800;
-// void chokudaiSearch(State& bestState, int& bestScore, int& bestPattern) {
-//     bestScore = 0;
-
-//     MODE = 100;
-//     // 評価値を全て保存しておく為のオブジェクト
-//     map<int, PQ> PQs;
-//     // hashを保存する これまでのとは別物にしておく
-//     set<int> hash_seen;
-//     // 実体があるStateを保持しておく このidxをStateInfo.prevIdxは持っておく
-//     vector<State> store;
-
-//     int DEL_SZ = 200;
-//     int MINDEP = max(0, int(bestState.ans.size()) - DEL_SZ);
-//     int MAXDEP = int(bestState.ans.size()) + 300;  // 後で改善
-
-//     assert(bestPattern == bestState.info.pattern);
-//     State initState(bestState.info.pattern, true);
-//     for (int i = 0; i < MINDEP; i++) {
-//         if (i == int(bestState.ans.size())) return;
-//         initState.applyRectByRect(bestState.ans[i]);
-//         if (!bestState.ans[i].is_ok) {
-//             MINDEP++;
-//         }
-//     }
-//     initState.stateIdx = 0;
-//     store.push_back(initState);
-//     for (int i = MINDEP; i < int(bestState.ans.size()); i++) {
-//         StateInfo info = store.back().info;
-//         assert(info.numNewPoints == i);
-//         {
-//             store.push_back(store.back());
-//             State& state = store.back();
-//             state.stateIdx = int(store.size()) - 1;
-//             state.applyRectByRect(bestState.ans[i]);
-//             if (state.cands.empty()) {
-//                 assert(i == int(bestState.ans.size()) - 1);
-//                 int score = calcRawScore(state.ans);
-//                 // assert(score == bestScore);
-//                 store.pop_back();
-//                 continue;
-//             }
-//             vector<int> Ps;
-//             for (int candIdx = 0; candIdx < int(state.cands.size());
-//                  candIdx++) {
-//                 if (state.cands[candIdx].containPoint(
-//                         state.ans.back().YXs[0])) {
-//                     Ps.push_back(candIdx);
-//                 }
-//             }
-//             if (Ps.empty()) {
-//                 Ps.resize(state.cands.size());
-//                 iota(Ps.begin(), Ps.end(), 0);
-//             }
-//             // for (int candIdx = 0; candIdx < int(state.cands.size());
-//             //      candIdx++) {
-//             for (auto& candIdx : Ps) {
-//                 if (state.cands[candIdx].is_ok) {
-//                     continue;
-//                 }
-//                 auto [new_state_info_dont_all, new_state_info_do_all] =
-//                     state.IfDoTheStep2(i, candIdx);
-//                 for (auto& new_state_info :
-//                      {new_state_info_dont_all, new_state_info_do_all}) {
-//                     assert(new_state_info.prevStateIdx == state.stateIdx);
-//                     assert(new_state_info.pattern == state.info.pattern);
-//                     if (hash_seen.find(new_state_info.hash()) !=
-//                         hash_seen.end()) {
-//                         continue;
-//                     }
-//                     hash_seen.insert(new_state_info.hash());
-//                     if (PQs.find(new_state_info.numNewPoints) == PQs.end()) {
-//                         PQs[new_state_info.numNewPoints] = PQ{compare};
-//                     }
-//                     PQs[new_state_info.numNewPoints].push(new_state_info);
-//                 }
+// Rects solveSimple(int pattern) {
+//     State state(pattern);
+//     state.applyAllOkRect();
+//     int loop_cnt = 0;
+//     while (!state.cands.empty()) {
+//         loop_cnt++;
+//         if (state.cands.empty()) break;
+//         int subBestScore = 0;
+//         int subBestCandIdx = -1;
+//         for (int candIdx = 0; candIdx < int(state.cands.size()); candIdx++) {
+//             StateInfo new_state_info = state.IfDoTheStep(loop_cnt, 0,
+//             candIdx); if (chmax(subBestScore,
+//             new_state_info.getTemporaryScore())) {
+//                 subBestCandIdx = candIdx;
 //             }
 //         }
+//         state.applyRect(subBestCandIdx);
+//         state.applyAllOkRect();
 //     }
-//     int _loop_cnt = 0;
-//     assert(PQs[MINDEP - 1].empty());
-//     assert(PQs[MINDEP].empty());
-//     assert(PQs[MINDEP + 1].empty());
-//     // assert(!PQs[MINDEP + 2].empty());
-//     while (timer.ms() < CHOKUDAI_TL) {
-//         _loop_cnt++;
-//         for (int dep = MINDEP + 2; dep < MAXDEP; dep++) {
-//             if (PQs.find(dep - 1) == PQs.end()) PQs[dep - 1] = PQ{compare};
-//             if (PQs[dep - 1].empty()) continue;
-//             StateInfo info = PQs[dep - 1].top();
-//             PQs[dep - 1].pop();
-//             assert(hash_seen.find(info.hash()) != hash_seen.end());
-//             assert(0 <= info.prevStateIdx &&
-//                    info.prevStateIdx < int(store.size()));
-//             store.push_back(store[info.prevStateIdx]);
-//             State& state = store.back();
-//             assert(state.stateIdx == info.prevStateIdx);
-//             state.stateIdx = int(store.size()) - 1;
-//             assert(0 <= info.candIdx && info.candIdx <
-//             int(state.cands.size())); state.applyRect(info.candIdx);
-//             // printAns(state.ans);
-//             // debug(state.cands);
-//             // assert(false);
-//             // if (hash_seen.find(state.info.hash()) != hash_seen.end()) {
-//             //     continue;
-//             // }
-//             if (state.cands.empty()) {
-//                 int score = calcRawScore(state.ans);
-//                 if (score > 870000) {
-//                     //     debug(state.info.hash());
-//                     //     // genTxtOfBeamContent(state);
-//                     debug(score);
-//                 }
-//                 if (chmax(bestScore, score)) {
-//                     swap(bestState, state);
-//                     bestPattern = bestState.info.pattern;
-//                 }
-//                 store.pop_back();
-//                 continue;
-//             }
-//             vector<int> Ps;
-//             for (int candIdx = 0; candIdx < int(state.cands.size());
-//                  candIdx++) {
-//                 if (state.cands[candIdx].containPoint(
-//                         state.ans.back().YXs[0])) {
-//                     Ps.push_back(candIdx);
-//                 }
-//             }
-//             // debug(state.cands);
-//             // debug(Ps);
-//             if (Ps.empty()) {
-//                 Ps.resize(state.cands.size());
-//                 iota(Ps.begin(), Ps.end(), 0);
-//             }
-//             for (auto& candIdx : Ps) {
-//                 // if (state.cands[candIdx].is_ok) {
-//                 //     continue;
-//                 // }
-//                 auto [new_state_info_dont_all, new_state_info_do_all] =
-//                     state.IfDoTheStep2(dep, candIdx);
-//                 for (auto& new_state_info : {new_state_info_dont_all}) {
-//                     assert(new_state_info.prevStateIdx == state.stateIdx);
-//                     assert(new_state_info.pattern == state.info.pattern);
-//                     if (hash_seen.find(new_state_info.hash()) !=
-//                         hash_seen.end()) {
-//                         continue;
-//                     }
-//                     hash_seen.insert(new_state_info.hash());
-//                     if (PQs.find(new_state_info.numNewPoints) == PQs.end()) {
-//                         PQs[new_state_info.numNewPoints] = PQ{compare};
-//                     }
-//                     PQs[new_state_info.numNewPoints].push(new_state_info);
-//                 }
-//             }
-//         }
-//     }
-//     debug(hash_seen.size());
-//     debug(_loop_cnt);
-//     debug(timer.ms());
-//     printAns(bestState.ans);
-//     assert(timer.ms() < TRUE_TL);
-// #ifdef ONLINE_JUDGE
-//     quick_exit(0);
-// #endif
+//     return state.ans;
 // }
 
 void solve() {
