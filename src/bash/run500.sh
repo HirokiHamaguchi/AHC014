@@ -8,14 +8,14 @@ RESET="\033[0m"
 FOLDER="./src/bash/"
 F_OUT="${FOLDER}out500.log"
 
-seedNum=99 #500-1
+seedNum=49 #500-1
 
 echo -n >| $F_OUT
 
 TIMEFORMAT=$' | time:%3lR'
 
 declare -A nowScores
-for seed in $(seq -f '%04g' 0 $seedNum); do
+for seed in $(seq -f '%04g' 342 $seedNum); do
     echo "seed:$seed"
     echo "seed:$seed" >> $F_OUT
     time { score=$(./src/cpp/solve < input2/$seed.txt 2> /dev/null); }

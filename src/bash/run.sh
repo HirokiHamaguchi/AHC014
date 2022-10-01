@@ -8,4 +8,4 @@ RESET="\033[0m"
 read -p "$(echo -e $YELLOW"seed: "$RESET)" seed
 seed=$(( seed ? seed : 0 ))
 seed=`printf "%04d\n" "${seed}"`
-./src/cpp/solve < input/${seed}.txt
+./src/cpp/solve < input2/${seed}.txt

@@ -18,6 +18,7 @@
         "forward_list": "cpp",
         "string": "cpp",
         "unordered_map": "cpp",
-        "unordered_set": "cpp"
+        "unordered_set": "cpp",
+        "random": "cpp"
     }
 }
